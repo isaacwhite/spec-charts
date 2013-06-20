@@ -81,8 +81,40 @@
 <div id="node-<?php print $node->nid; ?>" class="<?php print $classes; ?> clearfix"<?php print $attributes; ?>>
 
   <?php
-  dpm($node);
-  ?>
+  //dpm($node);
+  //$field_collection_item = field_collection_item_load(0,FALSE);
+  //print $field_collection_item;
+  //dpm($field_collection_item);
+
+  //$fc = entity_load('field_collection_item', array(1));
+  //dpm($fc);
+  // dpm($node->field_value_and_label->und.length);
+  // Extract the field collection item ids
+  
+  //Load the field ids
+  $fc_fields = field_get_items('node', $node, 'field_value_and_label');
+  $ids = array();
+  foreach ($fc_fields as $fc_field) {
+     $ids[] = $fc_field['value'];
+  } //put the ids into an array
+  
+   /*//dpm($ids);
+   //make a new array of the actual field colleciton entities
+   $fc_entities = array();
+   //loop through the array loading each field collection
+   // foreach ($ids as $fc_id) {
+   //  $fc_entities[]= entity_load('field_collection_item', array($fc_id['FieldCollectionItemEntity']));
+   // }
+   for ( $i=0; $i< count($ids); $i++) {
+      dpm($ids[$i]);
+      $fc_entities[]= entity_load('field_collection_item', array($ids[$i]));
+   };
+   dpm($fc_entities);
+  //$fc = entity_load($)
+  
+  //$field_collection_item = field_collection_item_load(1);
+  //dpm($field_collection_item);
+  */?>
   <style>
   .outer-bar {
     margin: .5%;
@@ -110,11 +142,51 @@
   #graph-spot {
     height:400px;
   }
+  #graph-labels {
+    width:100%;
+    height:50px;
+  }
+  .glabel {
+    display: inline-block;
+    text-align: center;
+    margin: .5%;
+  }
+  #x-axis-label {
+    display: block;
+    text-align: center;
+    text-transform: uppercase;
+  }
+  .gtitle {
+    padding: .5em;
+    text-transform: uppercase;
+    background-color: black;
+    color: white;
+    font-family: helvetica, sans-serif;
+  }
   </style>
+  <?php 
+    $fc_fields = field_get_items('node', $node, 'field_value_and_label');
+        $ids = array();
+        
+        foreach ($fc_fields as $fc_field) {
+           $ids[] = $fc_field['value'];
+        } //put the ids into an array
+  
+       //make a new array of the actual field colleciton entities
+       $fc_entities = array();
+   
+       //loop through the array loading each field collection
+       // foreach ($ids as $fc_id) {
+       //  $fc_entities[]= entity_load('field_collection_item', array($fc_id['FieldCollectionItemEntity']));
+       // }
+       for ( $i=0; $i< count($ids); $i++) {
+          //dpm($ids[$i]);
+          $fc_entities[]= entity_load('field_collection_item', array($ids[$i]));
+       };
+       //dpm($fc_entities);
+  ?>
   <script src="/themes/bartik/js/jquery-1.9.1.min.js"></script>
   <script type="text/javascript">
-    $(document).ready(function(){
-      $('h1.title').append('<div id="graph-spot"></div>');
       var GraphTitle = <?php print drupal_json_encode($title); ?>;
       var VertVal = <?php print drupal_json_encode($node->field_vertical_value); ?>;
       var VertLabels = <?php print drupal_json_encode($node->field_labels_for_vertical_values); ?>;
@@ -122,18 +194,26 @@
       var HorzUnit = <?php print drupal_Json_encode($node->field_horizontal_unit); ?>;
       var lineCount = <?php print drupal_json_encode($node->field_number_of_horizontal_lines); ?>;
       var VertMax = <?php print drupal_json_encode($node->field_maximum_value); ?>;
+      var percentWidth = (100 - VertVal.und.length)/VertVal.und.length; 
+      var fieldCollections = <?php print drupal_json_encode($fc_entities); ?>; 
+    $(document).ready(function(){
+      var $gTitle = $("<h3 class='gtitle'></h3>").html(GraphTitle);
+      $('#graph').prepend($gTitle).append('<div id="graph-spot"></div>').append('<div id="graph-labels"></div>').append('<div id="x-axis-label"></div>').prepend('');
+      
+      //var FieldCollection = <?php print drupal_json_encode($node->field_value_and_label); ?>;
      // console.log(gTitle);
      // console.log(gVertVal);
-
+     console.log(VertLabels);
      console.log("Vertical Values");
       for (i=0; i<VertVal.und.length; i++) {
+        // for (i=0; )
         //console.log(VertVal.und[i].value);
 
         var canvasHeight = $('#graph-spot').height();
         var rawHeight = VertVal.und[i].value;
         var maxHeight = VertMax.und[0].value;
         var height = ((rawHeight/maxHeight)*canvasHeight);
-        var percentWidth = (100 - VertVal.und.length * 1)/VertVal.und.length; 
+        
         //console.log(percentWidth);
         var newBar = $("<div class='outer-bar'>")
           .attr('style', 'height: ' + height.toFixed(0) + 'px;' + ' width:' + percentWidth + "%;" )
@@ -143,9 +223,16 @@
         //var inBar = $("<div class='in-bar'>");
        // var wholeBar = $(inBar.wrap(newBar));
           $('#graph-spot').append(newBar);
-
-        
       }
+      for (j=0; j<VertLabels.und.length; j++) {
+        var $graphLabel = $("<div class='glabel'></div>");
+        $graphLabel.html(VertLabels.und[j].safe_value).attr('style','width:' + percentWidth + "%;");
+        //console.log(graphLabel);
+        $('#graph-labels').append($graphLabel);
+      }
+      $('#x-axis-label').html(HorzUnit.und[0].value);
+      // $('#graph-labels').html('hello'); 
+      
       /*console.log("Vertical Labels");
       for (i=0; i<VertLabels.und.length; i++) {
       console.log(VertLabels.und[i].value);
@@ -182,6 +269,7 @@
   <?php endif; ?>
 
   <div class="content clearfix"<?php print $content_attributes; ?>>
+    <div id="graph">
     <?php
       // We hide the comments and links now so that we can render them later.
       hide($content['comments']);
