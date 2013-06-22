@@ -177,7 +177,9 @@
   ?>
   <script src="/themes/bartik/js/jquery-1.9.1.min.js"></script>
   <script type="text/javascript">
-    //Some global encoded json variables
+  //we don't want any global variables in case there are multiple graphs, or else all the graph values will be the same.
+    $(document).ready(function(){
+
     var GraphTitle = <?php print drupal_json_encode($title); ?>;
       var VertUnit = <?php print drupal_json_encode($node->field_vertical_unit); ?>;
       var HorzUnit = <?php print drupal_Json_encode($node->field_horizontal_unit); ?>;
@@ -189,8 +191,6 @@
       var prevMax = 0;
       var fc_ids = <?php print drupal_json_encode($ids); ?>;
       var $gTitle = $("<h3 class='gtitle'></h3>").html(GraphTitle);
-
-    $(document).ready(function(){
       <?php $nid = $node->nid; ?>
       $('#node-<?php print $nid; ?> .graph').append('<div class="graph-spot"></div>').append('<div class="graph-canvas"></div>').append('<div class="graph-labels"></div>').append('<div class="x-axis-label"></div>');
       var canvasHeight = $('#node-<?php print $nid; ?> .graph-spot').height();
@@ -198,21 +198,14 @@
       $gTitle.insertBefore($('#node-<?php print $nid; ?> .graph'));
       
       for (i=0; i<fieldCollections.length; i++) {
-        // for (i=0; )
-        //console.log(VertVal.und[i].value);
         var rawHeight = fieldCollections[i][fc_ids[i]].field_value.und[0].value;
-        //console.log(rawHeight);
         var sgLabel = fieldCollections[i][fc_ids[i]].field_label.und[0].safe_value;
-        // var rawHeight = VertVal.und[i].value;
         var maxHeight = VertMax.und[0].value;
-        //console.log(rawHeight/maxHeight);
         var height = ((rawHeight/maxHeight)*canvasHeight);
         if (height>prevMax) {
           prevMax = height;
         }
-        //console.log(height);
         
-        //console.log(percentWidth);
         var newBar = $("<div class='outer-bar'>")
           .attr('style', 'height: ' + height.toFixed(0) + 'px;' + ' width:' + percentWidth + "%;" )
           .append(
