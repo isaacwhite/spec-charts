@@ -81,110 +81,84 @@
 <div id="node-<?php print $node->nid; ?>" class="<?php print $classes; ?> clearfix"<?php print $attributes; ?>>
 
   <?php
-  //dpm($node);
-  //$field_collection_item = field_collection_item_load(0,FALSE);
-  //print $field_collection_item;
-  //dpm($field_collection_item);
-
-  //$fc = entity_load('field_collection_item', array(1));
-  //dpm($fc);
-  // dpm($node->field_value_and_label->und.length);
-  // Extract the field collection item ids
-  
   //Load the field ids
   $fc_fields = field_get_items('node', $node, 'field_value_and_label');
   $ids = array();
   foreach ($fc_fields as $fc_field) {
-     $ids[] = $fc_field['value'];
+     $ids = $fc_field['value'];
   } //put the ids into an array
   
-   /*//dpm($ids);
-   //make a new array of the actual field colleciton entities
-   $fc_entities = array();
-   //loop through the array loading each field collection
-   // foreach ($ids as $fc_id) {
-   //  $fc_entities[]= entity_load('field_collection_item', array($fc_id['FieldCollectionItemEntity']));
-   // }
-   for ( $i=0; $i< count($ids); $i++) {
-      dpm($ids[$i]);
-      $fc_entities[]= entity_load('field_collection_item', array($ids[$i]));
-   };
-   dpm($fc_entities);
-  //$fc = entity_load($)
-  
-  //$field_collection_item = field_collection_item_load(1);
-  //dpm($field_collection_item);
-  */?>
+   ?>
   <style>
-  .outer-bar {
-    margin: 0 .5%;
-    /*background-color: red;*/
-    display:inline-block;
-    /*opacity: 0;*/
-    /*cursor: pointer;*/
-    /*transition: all ease slow;*/
-    position:relative;
-  }
-  .inner-bar {
-    height: 0%;
-    width: 100%;
-    background-color: #00BFFF;
-    cursor: pointer;
-    position:absolute;
-    bottom:0;
-  }
-  .inner-bar.loaded {
-    /*transition: all .1s linear;*/
-  }
-  .inner-bar:hover {
-    background-color: yellow;
-  }
-  #graph-spot {
-    height:400px;
-    box-sizing: border-box;
-    position: relative;
-    z-index: 2;
-    border-top: 1px solid #d7d7d7;
-  }
-  #graph-labels {
-    width:100%;
-    height:50px;
-  }
-  .glabel {
-    display: inline-block;
-    text-align: center;
-    margin: .5%;
-    vertical-align: top;
-    font-family: helvetica, sans-serif;
-    font-size: .875em;
-    text-transform: uppercase;
-  }
-  #x-axis-label {
-    display: block;
-    text-align: center;
-    text-transform: uppercase;
-  }
-  .gtitle {
-    padding: .5em;
-    text-transform: uppercase;
-    background-color: black;
-    color: white;
-    font-family: helvetica, sans-serif;
-  }
-  #graph-canvas {
-    position: absolute;
-    width: 100%;
-    top:0;
-    left:0;
-    z-index: 0;
-  }
-  #graph {
-    position: relative;
-  }
-  .horz-line {
-    border-bottom: 1px solid #d7d7d7;
-    box-sizing: border-box;
-  }
+    .outer-bar {
+      margin: 0 .5%;
+      /*background-color: red;*/
+      display:inline-block;
+      /*opacity: 0;*/
+      /*cursor: pointer;*/
+      /*transition: all ease slow;*/
+      position:relative;
+    }
+    .inner-bar {
+      height: 0%;
+      width: 100%;
+      background-color: #00BFFF;
+      cursor: pointer;
+      position:absolute;
+      bottom:0;
+    }
+    .inner-bar.loaded {
+      /*transition: all .1s linear;*/
+    }
+    .inner-bar:hover {
+      background-color: yellow;
+    }
+    .graph-spot {
+      height:400px;
+      box-sizing: border-box;
+      position: relative;
+      z-index: 2;
+      border-top: 1px solid #d7d7d7;
+    }
+    .graph-labels {
+      width:100%;
+      height:50px;
+    }
+    .glabel {
+      display: inline-block;
+      text-align: center;
+      margin: .5%;
+      vertical-align: top;
+      font-family: helvetica, sans-serif;
+      font-size: .875em;
+      text-transform: uppercase;
+    }
+    .x-axis-label {
+      display: block;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .gtitle {
+      padding: .5em;
+      text-transform: uppercase;
+      background-color: black;
+      color: white;
+      font-family: helvetica, sans-serif;
+    }
+    .graph-canvas {
+      position: absolute;
+      width: 100%;
+      top:0;
+      left:0;
+      z-index: 0;
+    }
+    .graph {
+      position: relative;
+    }
+    .horz-line {
+      border-bottom: 1px solid #d7d7d7;
+      box-sizing: border-box;
+    }
   </style>
   <?php 
     $fc_fields = field_get_items('node', $node, 'field_value_and_label');
@@ -197,20 +171,14 @@
        //make a new array of the actual field colleciton entities
        $fc_entities = array();
    
-       //loop through the array loading each field collection
-       // foreach ($ids as $fc_id) {
-       //  $fc_entities[]= entity_load('field_collection_item', array($fc_id['FieldCollectionItemEntity']));
-       // }
        for ( $i=0; $i< count($ids); $i++) {
-          //dpm($ids[$i]);
           $fc_entities[]= entity_load('field_collection_item', array($ids[$i]));
        };
-       //dpm($fc_entities);
   ?>
   <script src="/themes/bartik/js/jquery-1.9.1.min.js"></script>
   <script type="text/javascript">
     //Some global encoded json variables
-      var GraphTitle = <?php print drupal_json_encode($title); ?>;
+    var GraphTitle = <?php print drupal_json_encode($title); ?>;
       var VertUnit = <?php print drupal_json_encode($node->field_vertical_unit); ?>;
       var HorzUnit = <?php print drupal_Json_encode($node->field_horizontal_unit); ?>;
       var lineCountRaw = <?php print drupal_json_encode($node->field_number_of_horizontal_lines); ?>;
@@ -220,11 +188,15 @@
       var percentWidth = (100 - fieldCollections.length)/fieldCollections.length; 
       var prevMax = 0;
       var fc_ids = <?php print drupal_json_encode($ids); ?>;
-    $(document).ready(function(){
       var $gTitle = $("<h3 class='gtitle'></h3>").html(GraphTitle);
-      $('#graph').append('<div id="graph-spot"></div>').append('<div id="graph-canvas"></div>').append('<div id="graph-labels"></div>').append('<div id="x-axis-label"></div>');
-      $gTitle.insertBefore($('#graph'));
-      var canvasHeight = $('#graph-spot').height();
+
+    $(document).ready(function(){
+      <?php $nid = $node->nid; ?>
+      $('#node-<?php print $nid; ?> .graph').append('<div class="graph-spot"></div>').append('<div class="graph-canvas"></div>').append('<div class="graph-labels"></div>').append('<div class="x-axis-label"></div>');
+      var canvasHeight = $('#node-<?php print $nid; ?> .graph-spot').height();
+      console.log(canvasHeight);
+      $gTitle.insertBefore($('#node-<?php print $nid; ?> .graph'));
+      
       for (i=0; i<fieldCollections.length; i++) {
         // for (i=0; )
         //console.log(VertVal.und[i].value);
@@ -233,7 +205,7 @@
         var sgLabel = fieldCollections[i][fc_ids[i]].field_label.und[0].safe_value;
         // var rawHeight = VertVal.und[i].value;
         var maxHeight = VertMax.und[0].value;
-        console.log(rawHeight/maxHeight);
+        //console.log(rawHeight/maxHeight);
         var height = ((rawHeight/maxHeight)*canvasHeight);
         if (height>prevMax) {
           prevMax = height;
@@ -244,27 +216,27 @@
         var newBar = $("<div class='outer-bar'>")
           .attr('style', 'height: ' + height.toFixed(0) + 'px;' + ' width:' + percentWidth + "%;" )
           .append(
-              $("<div class='inner-bar'>")
+              $("<div class='inner-bar'></div>")
             );
         //var inBar = $("<div class='in-bar'>");
        // var wholeBar = $(inBar.wrap(newBar));
-          $('#graph-spot').append(newBar);
+          $('#node-<?php print $nid; ?> .graph-spot').append(newBar);
 
         var $graphLabel = $("<div class='glabel'></div>");
         $graphLabel.html(sgLabel).attr('style','width:' + percentWidth + "%;");
         //console.log(graphLabel);
-        $('#graph-labels').append($graphLabel);
+        $('#node-<?php print $nid; ?> .graph-labels').append($graphLabel);
 
       }
       var divCount = lineCount + 1;
       var divHeight = canvasHeight/divCount;
-      console.log(canvasHeight);
-      console.log(divHeight);
+      //console.log(canvasHeight);
+      //console.log(divHeight);
       // console.log(lineCount);
       for (i=0; i<lineCount+1;i++) {
         var $horzLine = $("<div class='horz-line'></div>");
         $horzLine.html((divCount-i)*(maxHeight/divCount)).attr('style', 'height:' + divHeight + "px;");
-        $('#graph-canvas').append($horzLine);
+        $('#node-<?php print $nid; ?> .graph-canvas').append($horzLine);
       }
       // for (j=0; j<VertLabels.und.length; j++) {
       //   var $graphLabel = $("<div class='glabel'></div>");
@@ -272,28 +244,13 @@
       //   //console.log(graphLabel);
       //   $('#graph-labels').append($graphLabel);
       // }
-      $('#x-axis-label').html(HorzUnit.und[0].value);
+      $('#node-<?php print $nid; ?> .x-axis-label').html(HorzUnit.und[0].value);
       // $('#graph-labels').html('hello'); 
-      
-      /*console.log("Vertical Labels");
-      for (i=0; i<VertLabels.und.length; i++) {
-      console.log(VertLabels.und[i].value);
-      }
-      console.log(rawHeight/VertMax.und[0].value);
-      console.log(parseFloat((VertMax)/parseFloat(rawHeight) ));
-      console.log("Vertical Unit");
-      console.log(VertUnit.und[0].value);
-      console.log("Horizontal Unit");
-      console.log(HorzUnit.und[0].value);
-      console.log("Horizontal Line Count");
-      console.log(lineCount.und[0].value);
-      console.log("Maximum Value:");
-      console.log(VertMax.und[0].value);
-      */
+  
       var paddingTop = canvasHeight - prevMax;
-      $('#graph-spot').css('padding-top', paddingTop + "px");
-      $('.inner-bar').animate({height:'100%'},500).addClass('loaded');
-      $('#graph-canvas').css('height',canvasHeight + "px");
+      $('#node-<?php print $nid; ?> .graph-spot').css('padding-top', paddingTop + "px");
+      $('#node-<?php print $nid; ?> .inner-bar').animate({height:'100%'},500).addClass('loaded');
+      $('#node-<?php print $nid; ?> .graph-canvas').css('height',canvasHeight + "px");
 
 
     });
@@ -314,13 +271,14 @@
   <?php endif; ?>
 
   <div class="content clearfix"<?php print $content_attributes; ?>>
-    <div id="graph">
+    <div class="graph">
     <?php
       // We hide the comments and links now so that we can render them later.
       hide($content['comments']);
       hide($content['links']);
       print render($content);
     ?>
+    </div>
   </div>
   <?php
     // Remove the "Add new comment" link on the teaser page or if the comment
