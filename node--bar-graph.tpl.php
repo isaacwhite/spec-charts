@@ -117,7 +117,7 @@
   */?>
   <style>
   .outer-bar {
-    margin: .5%;
+    margin: 0 .5%;
     /*background-color: red;*/
     display:inline-block;
     /*opacity: 0;*/
@@ -128,7 +128,7 @@
   .inner-bar {
     height: 0%;
     width: 100%;
-    background-color: red;
+    background-color: #00BFFF;
     cursor: pointer;
     position:absolute;
     bottom:0;
@@ -141,6 +141,10 @@
   }
   #graph-spot {
     height:400px;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 2;
+    border-top: 1px solid #d7d7d7;
   }
   #graph-labels {
     width:100%;
@@ -150,6 +154,10 @@
     display: inline-block;
     text-align: center;
     margin: .5%;
+    vertical-align: top;
+    font-family: helvetica, sans-serif;
+    font-size: .875em;
+    text-transform: uppercase;
   }
   #x-axis-label {
     display: block;
@@ -162,6 +170,20 @@
     background-color: black;
     color: white;
     font-family: helvetica, sans-serif;
+  }
+  #graph-canvas {
+    position: absolute;
+    width: 100%;
+    top:0;
+    left:0;
+    z-index: 0;
+  }
+  #graph {
+    position: relative;
+  }
+  .horz-line {
+    border-bottom: 1px solid #d7d7d7;
+    box-sizing: border-box;
   }
   </style>
   <?php 
@@ -187,32 +209,36 @@
   ?>
   <script src="/themes/bartik/js/jquery-1.9.1.min.js"></script>
   <script type="text/javascript">
+    //Some global encoded json variables
       var GraphTitle = <?php print drupal_json_encode($title); ?>;
-      var VertVal = <?php print drupal_json_encode($node->field_vertical_value); ?>;
-      var VertLabels = <?php print drupal_json_encode($node->field_labels_for_vertical_values); ?>;
       var VertUnit = <?php print drupal_json_encode($node->field_vertical_unit); ?>;
       var HorzUnit = <?php print drupal_Json_encode($node->field_horizontal_unit); ?>;
-      var lineCount = <?php print drupal_json_encode($node->field_number_of_horizontal_lines); ?>;
+      var lineCountRaw = <?php print drupal_json_encode($node->field_number_of_horizontal_lines); ?>;
       var VertMax = <?php print drupal_json_encode($node->field_maximum_value); ?>;
-      var percentWidth = (100 - VertVal.und.length)/VertVal.und.length; 
       var fieldCollections = <?php print drupal_json_encode($fc_entities); ?>; 
+      var lineCount = parseInt(lineCountRaw.und[0].value);
+      var percentWidth = (100 - fieldCollections.length)/fieldCollections.length; 
+      var prevMax = 0;
+      var fc_ids = <?php print drupal_json_encode($ids); ?>;
     $(document).ready(function(){
       var $gTitle = $("<h3 class='gtitle'></h3>").html(GraphTitle);
-      $('#graph').prepend($gTitle).append('<div id="graph-spot"></div>').append('<div id="graph-labels"></div>').append('<div id="x-axis-label"></div>').prepend('');
-      
-      //var FieldCollection = <?php print drupal_json_encode($node->field_value_and_label); ?>;
-     // console.log(gTitle);
-     // console.log(gVertVal);
-     console.log(VertLabels);
-     console.log("Vertical Values");
-      for (i=0; i<VertVal.und.length; i++) {
+      $('#graph').append('<div id="graph-spot"></div>').append('<div id="graph-canvas"></div>').append('<div id="graph-labels"></div>').append('<div id="x-axis-label"></div>');
+      $gTitle.insertBefore($('#graph'));
+      var canvasHeight = $('#graph-spot').height();
+      for (i=0; i<fieldCollections.length; i++) {
         // for (i=0; )
         //console.log(VertVal.und[i].value);
-
-        var canvasHeight = $('#graph-spot').height();
-        var rawHeight = VertVal.und[i].value;
+        var rawHeight = fieldCollections[i][fc_ids[i]].field_value.und[0].value;
+        //console.log(rawHeight);
+        var sgLabel = fieldCollections[i][fc_ids[i]].field_label.und[0].safe_value;
+        // var rawHeight = VertVal.und[i].value;
         var maxHeight = VertMax.und[0].value;
+        console.log(rawHeight/maxHeight);
         var height = ((rawHeight/maxHeight)*canvasHeight);
+        if (height>prevMax) {
+          prevMax = height;
+        }
+        //console.log(height);
         
         //console.log(percentWidth);
         var newBar = $("<div class='outer-bar'>")
@@ -223,13 +249,29 @@
         //var inBar = $("<div class='in-bar'>");
        // var wholeBar = $(inBar.wrap(newBar));
           $('#graph-spot').append(newBar);
-      }
-      for (j=0; j<VertLabels.und.length; j++) {
+
         var $graphLabel = $("<div class='glabel'></div>");
-        $graphLabel.html(VertLabels.und[j].safe_value).attr('style','width:' + percentWidth + "%;");
+        $graphLabel.html(sgLabel).attr('style','width:' + percentWidth + "%;");
         //console.log(graphLabel);
         $('#graph-labels').append($graphLabel);
+
       }
+      var divCount = lineCount + 1;
+      var divHeight = canvasHeight/divCount;
+      console.log(canvasHeight);
+      console.log(divHeight);
+      // console.log(lineCount);
+      for (i=0; i<lineCount+1;i++) {
+        var $horzLine = $("<div class='horz-line'></div>");
+        $horzLine.html((divCount-i)*(maxHeight/divCount)).attr('style', 'height:' + divHeight + "px;");
+        $('#graph-canvas').append($horzLine);
+      }
+      // for (j=0; j<VertLabels.und.length; j++) {
+      //   var $graphLabel = $("<div class='glabel'></div>");
+      //   $graphLabel.html(VertLabels.und[j].safe_value).attr('style','width:' + percentWidth + "%;");
+      //   //console.log(graphLabel);
+      //   $('#graph-labels').append($graphLabel);
+      // }
       $('#x-axis-label').html(HorzUnit.und[0].value);
       // $('#graph-labels').html('hello'); 
       
@@ -248,7 +290,10 @@
       console.log("Maximum Value:");
       console.log(VertMax.und[0].value);
       */
+      var paddingTop = canvasHeight - prevMax;
+      $('#graph-spot').css('padding-top', paddingTop + "px");
       $('.inner-bar').animate({height:'100%'},500).addClass('loaded');
+      $('#graph-canvas').css('height',canvasHeight + "px");
 
 
     });
