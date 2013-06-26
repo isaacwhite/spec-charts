@@ -165,12 +165,14 @@
       var endX = centerX + radius * Math.cos(angle);//calculating endX by angle so far alone
       var endY = centerY + radius * Math.sin(angle);//same problem as
 
+      var thickness = 10;
       var results = new Array();
-      if (specialFlag != 0) {
-        var smallStartX = centerX + (radius-30) * Math.cos(startAngle);
-        var smallStartY = centerY + (radius-30) * Math.sin(startAngle);
-        var smallEndX = centerX + (radius-30) * Math.cos(angle);
-        var smallEndY = centerY + (radius-30) * Math.sin(angle);
+      if (specialFlag != 0) { //pie with hole in the middle
+        var smallRadius = radius-thickness;
+        var smallStartX = centerX + smallRadius * Math.cos(startAngle);
+        var smallStartY = centerY + smallRadius * Math.sin(startAngle);
+        var smallEndX = centerX + smallRadius * Math.cos(angle);
+        var smallEndY = centerY + smallRadius * Math.sin(angle);
 
         arcString += "M" + smallStartX + "," + smallStartY;
         arcString += " ";
@@ -179,13 +181,14 @@
         arcString += " ";
 
         arcString += "A" + radius + "," + radius;
-        arcString += ",0," + isLarge + ",1";
+        arcString += ",0," + isLarge + ",1 ";
+        arcString += endX + "," + endY;
 
         arcString += "L" + smallEndX + "," + smallEndY;
         arcString += " ";
 
-        arcString += "A" + (radius-30) + "," + (radius-30);
-        arcString += ",0," + isLarge + ",0";
+        arcString += "A" + smallRadius + "," + smallRadius;
+        arcString += ",0," + isLarge + ",0 ";
 
         arcString += smallStartX + "," + smallStartY;
         arcString += ",z";
