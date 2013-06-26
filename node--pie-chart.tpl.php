@@ -122,10 +122,8 @@
     svg path {
       fill-opacity: 0;
       cursor: pointer;
+      stroke-opacity: 0;
 
-    }
-    svg path:hover {
-      fill-opacity: ;
     }
   </style>
   <?php 
@@ -156,25 +154,52 @@
           }
         }, 300);
     }
-    function drawArc(centerX,centerY,radius,startX,startY,percent,isLarge,used) {//angle passed in radians, pleased
+    function drawArc(centerX,centerY,radius,startX,startY,percent,isLarge,used,specialFlag) {//angle passed in radians, pleased
       var arcString = "M" + centerX + "," + centerY;
       arcString += " ";//add a space
 
       var angle = 2 * Math.PI * (percent + used);
+      var startAngle = 2 * Math.PI * used;
       //console.log(angle);
       //calculate endpoint :)
       var endX = centerX + radius * Math.cos(angle);//calculating endX by angle so far alone
       var endY = centerY + radius * Math.sin(angle);//same problem as
 
       var results = new Array();
+      if (specialFlag != 0) {
+        var smallStartX = centerX + (radius-30) * Math.cos(startAngle);
+        var smallStartY = centerY + (radius-30) * Math.sin(startAngle);
+        var smallEndX = centerX + (radius-30) * Math.cos(angle);
+        var smallEndY = centerY + (radius-30) * Math.sin(angle);
+
+        arcString += "M" + smallStartX + "," + smallStartY;
+        arcString += " ";
+
+        arcString += "L" + startX + "," + startY;
+        arcString += " ";
+
+        arcString += "A" + radius + "," + radius;
+        arcString += ",0," + isLarge + ",1";
+
+        arcString += "L" + smallEndX + "," + smallEndY;
+        arcString += " ";
+
+        arcString += "A" + (radius-30) + "," + (radius-30);
+        arcString += ",0," + isLarge + ",0";
+
+        arcString += smallStartX + "," + smallStartY;
+        arcString += ",z";
+      } else {
+        //normal code
       arcString += "L" + startX + "," + startY; //initial line
       arcString += " ";//add a space
 
       arcString += "A" + radius + "," + radius;//we only draw circular arcs, here.
-      arcString += ",20," + isLarge + ",1 "//some required flags and spaces
+      arcString += ",20," + isLarge + ",1 ";//some required flags and spaces
 
       arcString += endX + "," +endY;//add the end points
       arcString += ",z";//close the path
+      }
 
       results[0] = arcString;
       results[1] = endX;
@@ -184,7 +209,7 @@
     }
 
     function fadeIn(toAnimate,duration,opacity) {
-      toAnimate.animate({"fill-opacity":opacity},duration, "<>");
+      toAnimate.animate({"fill-opacity":opacity,"stroke-opacity":"1"},duration, "<>");
     }
 
     $(document).ready(function(){
@@ -251,7 +276,7 @@
         if (percentages[i]>0.5) {
           largeArc = 1;
         } //no else
-        var currentArc = drawArc(graphRadius,graphRadius,pieRadius,xStart,yStart,percentages[i],largeArc,isUsed);
+        var currentArc = drawArc(graphRadius,graphRadius,pieRadius,xStart,yStart,percentages[i],largeArc,isUsed,1);
         //console.log(currentArc);
          
         var raphaelObject = paper.path(currentArc[0]).attr({
@@ -266,7 +291,6 @@
 
        
         paths.push(raphaelObject);
-       
         isUsed += percentages[i];//update how much has already been consumed
        // console.log(currentArc[1]);
        // console.log(currentArc[2]);
@@ -274,32 +298,10 @@
         yStart = currentArc[2];
       }
      
-
+      // var circle = "circle cx=" + graphRadius + " cy=" + graphRadius + " r=" + (pieRadius-30) + " stroke=black";
+      //   paths.push(circle);
       timedLoop(paths);
 
-      // ('svg path').onmouseover(function() {
-      //   this.animate("fill-opacity:1", 200, "ease");
-      // });
-      // , function() {
-      //   this.animate("fill-opacity:0.5", 200, "ease");
-      // });
-      
-      // for (i=0; i<paths.length; i++) {
-      //   setTimeout(paths[i].,10000);
-
-      // }
-      //console.log(canvasHeight);
-      //console.log(divHeight);
-      // console.log(lineCount);
-      
-      // for (j=0; j<VertLabels.und.length; j++) {
-      //   var $graphLabel = $("<div class='glabel'></div>");
-      //   $graphLabel.html(VertLabels.und[j].safe_value).attr('style','width:' + percentWidth + "%;");
-      //   //console.log(graphLabel);
-      //   $('#graph-labels').append($graphLabel);
-      // }
-      //$('#node-<?php print $nid; ?> .x-axis-label').html(HorzUnit.und[0].value);
-      // $('#graph-labels').html('hello'); 
   
       $('#node-<?php print $nid; ?> .graph-canvas').css('height',canvasHeight + "px");
 
