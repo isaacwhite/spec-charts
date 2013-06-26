@@ -119,6 +119,14 @@
     .graph {
       position: relative;
     }
+    svg path {
+      fill-opacity: 0;
+      cursor: pointer;
+
+    }
+    svg path:hover {
+      fill-opacity: ;
+    }
   </style>
   <?php 
     $fc_fields = field_get_items('node', $node, 'field_value_and_label');
@@ -137,31 +145,46 @@
   ?>
   <script type="text/javascript">
   //we don't want any global variables in case there are multiple graphs, or else all the graph values will be the same.
-    function drawArc(centerX,centerY,radius,startX,startY,percent,isLarge) {//angle passed in radians, pleased
+    
+    var loopCount =0;
+    function timedLoop (paths) {
+        setTimeout(function () {
+          fadeIn(paths[loopCount],300,"0.5");
+          loopCount++;
+          if (loopCount<paths.length) {
+            timedLoop(paths);     
+          }
+        }, 300);
+    }
+    function drawArc(centerX,centerY,radius,startX,startY,percent,isLarge,used) {//angle passed in radians, pleased
       var arcString = "M" + centerX + "," + centerY;
       arcString += " ";//add a space
 
-      var angle = 2 * Math.PI * percent;
+      var angle = 2 * Math.PI * (percent + used);
       //console.log(angle);
       //calculate endpoint :)
-      var endX = centerX + radius * Math.cos(angle);
-      var endY = centerY + radius * Math.sin(angle);
+      var endX = centerX + radius * Math.cos(angle);//calculating endX by angle so far alone
+      var endY = centerY + radius * Math.sin(angle);//same problem as
 
       var results = new Array();
       arcString += "L" + startX + "," + startY; //initial line
       arcString += " ";//add a space
 
       arcString += "A" + radius + "," + radius;//we only draw circular arcs, here.
-      arcString += " 0 " + isLarge + ",1 "//some required flags and spaces
+      arcString += ",20," + isLarge + ",1 "//some required flags and spaces
 
       arcString += endX + "," +endY;//add the end points
-      arcString += " z";//close the path
+      arcString += ",z";//close the path
 
       results[0] = arcString;
       results[1] = endX;
       results[2] = endY;
 
       return results; //returns an array with the arcString and the end coordinates
+    }
+
+    function fadeIn(toAnimate,duration,opacity) {
+      toAnimate.animate({"fill-opacity":opacity},duration, "<>");
     }
 
     $(document).ready(function(){
@@ -222,19 +245,49 @@
       var paths = [];
       var xStart = (graphRadius+pieRadius)
       var yStart = graphRadius;
+      var isUsed = 0;
       for (i=0; i<percentages.length; i++) {
         var largeArc = 0;
-        if (percentages[i]>.5) {
+        if (percentages[i]>0.5) {
           largeArc = 1;
         } //no else
-        var currentArc = drawArc(graphRadius,graphRadius,pieRadius,xStart,yStart,percentages[i],largeArc);
-        paths.push(paper.path(currentArc[0]));
+        var currentArc = drawArc(graphRadius,graphRadius,pieRadius,xStart,yStart,percentages[i],largeArc,isUsed);
+        //console.log(currentArc);
+         
+        var raphaelObject = paper.path(currentArc[0]).attr({
+          fill: "black"
+        }).mouseover(function () {
+                this.stop().animate({"fill-opacity":" 1"}, 200, "<>");
+                // txt.stop().animate({opacity: 1}, ms, "elastic");
+            }).mouseout(function () {
+                this.stop().animate({"fill-opacity": "0.5"}, 200, "<>");
+                // txt.stop().animate({opacity: 0}, ms);
+            });
+
+       
+        paths.push(raphaelObject);
+       
+        isUsed += percentages[i];//update how much has already been consumed
        // console.log(currentArc[1]);
        // console.log(currentArc[2]);
         xStart = currentArc[1];
         yStart = currentArc[2];
       }
      
+
+      timedLoop(paths);
+
+      // ('svg path').onmouseover(function() {
+      //   this.animate("fill-opacity:1", 200, "ease");
+      // });
+      // , function() {
+      //   this.animate("fill-opacity:0.5", 200, "ease");
+      // });
+      
+      // for (i=0; i<paths.length; i++) {
+      //   setTimeout(paths[i].,10000);
+
+      // }
       //console.log(canvasHeight);
       //console.log(divHeight);
       // console.log(lineCount);
