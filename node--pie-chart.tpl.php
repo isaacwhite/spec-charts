@@ -144,12 +144,12 @@
   <script type="text/javascript">
   //we don't want any global variables in case there are multiple graphs, or else all the graph values will be the same.
     
-    var loopCount =0;
+    var loopCount<?php print $nid;?>=0;
     function timedLoop (paths) {
         setTimeout(function () {
-          fadeIn(paths[loopCount],300,"0.5");
-          loopCount++;
-          if (loopCount<paths.length) {
+          fadeIn(paths[loopCount<?php print $nid;?>],300,"0.75");
+          loopCount<?php print $nid;?>++;
+          if (loopCount<?php print $nid;?><paths.length) {
             timedLoop(paths);     
           }
         }, 300);
@@ -165,7 +165,7 @@
       var endX = centerX + radius * Math.cos(angle);//calculating endX by angle so far alone
       var endY = centerY + radius * Math.sin(angle);//same problem as
 
-      var thickness = 10;
+      var thickness = 48;
       var results = new Array();
       if (specialFlag != 0) { //pie with hole in the middle
         var smallRadius = radius-thickness;
@@ -220,13 +220,13 @@
         var GraphTitle = <?php print drupal_json_encode($title); ?>;
         var fieldCollections = <?php print drupal_json_encode($fc_entities); ?>; 
         var fc_ids = <?php print drupal_json_encode($ids); ?>;
+        //console.log(thickness);
         var $gTitle = $("<h3 class='gtitle'></h3>").html(GraphTitle);
         <?php $nid = $node->nid; ?>
         $('#node-<?php print $nid; ?> .graph').append('<div class="graph-spot"></div>').append('<div class="graph-canvas"></div>').append('<div class="graph-labels"></div>').append('<div class="x-axis-label"></div>');
         var canvasHeight = $('#node-<?php print $nid; ?> .graph-spot').height();
         var canvasWidth =  $('#node-<?php print $nid; ?> .graph-spot').width();
         var canvasPosition = $('#node-<?php print $nid; ?> .graph-spot').position();
-
         var graphRadius = -1;
         if (canvasHeight < canvasWidth) {
           graphRadius = Math.floor(canvasHeight/2);
@@ -240,7 +240,7 @@
         //console.log(startPoint);
         //console.log(canvasHeight);
         $gTitle.insertBefore($('#node-<?php print $nid; ?> .graph'));
-        paper = Raphael($(".graph-spot")[0], canvasWidth, canvasHeight);
+        paper<?php print $nid;?> = Raphael($("#node-<?php print $nid; ?> .graph-spot")[0], canvasWidth, canvasHeight);
         
         //var currentArc = drawArc(graphRadius, graphRadius,pieRadius,(graphRadius+pieRadius),graphRadius,.4,1);
         //console.log(currentArc);
@@ -270,7 +270,7 @@
         percentages.push(values[i]/total);
       }
      // console.log(percentages);
-      var paths = [];
+      var paths<?php print $nid; ?> = [];
       var xStart = (graphRadius+pieRadius)
       var yStart = graphRadius;
       var isUsed = 0;
@@ -280,20 +280,23 @@
           largeArc = 1;
         } //no else
         var currentArc = drawArc(graphRadius,graphRadius,pieRadius,xStart,yStart,percentages[i],largeArc,isUsed,1);
+        var currentColor = fieldCollections[i][fc_ids[i]].field_color.und[0].rgb;
         //console.log(currentArc);
          
-        var raphaelObject = paper.path(currentArc[0]).attr({
-          fill: "black"
+        var raphaelObject = paper<?php print $nid;?>.path(currentArc[0]).attr({
+          fill: currentColor,
+          stroke: "white",
+          "stroke-width": 2
         }).mouseover(function () {
                 this.stop().animate({"fill-opacity":" 1"}, 200, "<>");
                 // txt.stop().animate({opacity: 1}, ms, "elastic");
             }).mouseout(function () {
-                this.stop().animate({"fill-opacity": "0.5"}, 200, "<>");
+                this.stop().animate({"fill-opacity": "0.75"}, 200, "<>");
                 // txt.stop().animate({opacity: 0}, ms);
             });
 
        
-        paths.push(raphaelObject);
+        paths<?php print $nid; ?>.push(raphaelObject);
         isUsed += percentages[i];//update how much has already been consumed
        // console.log(currentArc[1]);
        // console.log(currentArc[2]);
@@ -303,7 +306,7 @@
      
       // var circle = "circle cx=" + graphRadius + " cy=" + graphRadius + " r=" + (pieRadius-30) + " stroke=black";
       //   paths.push(circle);
-      timedLoop(paths);
+      timedLoop(paths<?php print $nid; ?>);
 
   
       $('#node-<?php print $nid; ?> .graph-canvas').css('height',canvasHeight + "px");
