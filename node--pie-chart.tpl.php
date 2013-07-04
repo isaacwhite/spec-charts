@@ -126,7 +126,7 @@
 
     }
   </style>
-  <?php 
+  <?php  /*RETRIEVE THE FIELD COLLECTIONS*/
     $fc_fields = field_get_items('node', $node, 'field_value_and_label');
         $ids = array();
         
@@ -140,80 +140,15 @@
        for ( $i=0; $i< count($ids); $i++) {
           $fc_entities[]= entity_load('field_collection_item', array($ids[$i]));
        };
+       $values = array();
+       // for ($i=0; $i<count($fc_entities); $i++) {
+       //     $values[] = $fc_entities[$i]-> echo $ids[$i];
+       //   }
+       //  dpm($values);
   ?>
+  
   <script type="text/javascript">
   //we don't want any global variables in case there are multiple graphs, or else all the graph values will be the same.
-    
-    var loopCount<?php print $nid;?>=0;
-    function timedLoop (paths) {
-        setTimeout(function () {
-          fadeIn(paths[loopCount<?php print $nid;?>],300,"0.75");
-          loopCount<?php print $nid;?>++;
-          if (loopCount<?php print $nid;?><paths.length) {
-            timedLoop(paths);     
-          }
-        }, 300);
-    }
-    function drawArc(centerX,centerY,radius,startX,startY,percent,isLarge,used,specialFlag) {//angle passed in radians, pleased
-      var arcString = "M" + centerX + "," + centerY;
-      arcString += " ";//add a space
-
-      var angle = 2 * Math.PI * (percent + used);
-      var startAngle = 2 * Math.PI * used;
-      //console.log(angle);
-      //calculate endpoint :)
-      var endX = centerX + radius * Math.cos(angle);//calculating endX by angle so far alone
-      var endY = centerY + radius * Math.sin(angle);//same problem as
-
-      var thickness = 48;
-      var results = new Array();
-      if (specialFlag != 0) { //pie with hole in the middle
-        var smallRadius = radius-thickness;
-        var smallStartX = centerX + smallRadius * Math.cos(startAngle);
-        var smallStartY = centerY + smallRadius * Math.sin(startAngle);
-        var smallEndX = centerX + smallRadius * Math.cos(angle);
-        var smallEndY = centerY + smallRadius * Math.sin(angle);
-
-        arcString += "M" + smallStartX + "," + smallStartY;
-        arcString += " ";
-
-        arcString += "L" + startX + "," + startY;
-        arcString += " ";
-
-        arcString += "A" + radius + "," + radius;
-        arcString += ",0," + isLarge + ",1 ";
-        arcString += endX + "," + endY;
-
-        arcString += "L" + smallEndX + "," + smallEndY;
-        arcString += " ";
-
-        arcString += "A" + smallRadius + "," + smallRadius;
-        arcString += ",0," + isLarge + ",0 ";
-
-        arcString += smallStartX + "," + smallStartY;
-        arcString += ",z";
-      } else {
-        //normal code
-      arcString += "L" + startX + "," + startY; //initial line
-      arcString += " ";//add a space
-
-      arcString += "A" + radius + "," + radius;//we only draw circular arcs, here.
-      arcString += ",20," + isLarge + ",1 ";//some required flags and spaces
-
-      arcString += endX + "," +endY;//add the end points
-      arcString += ",z";//close the path
-      }
-
-      results[0] = arcString;
-      results[1] = endX;
-      results[2] = endY;
-
-      return results; //returns an array with the arcString and the end coordinates
-    }
-
-    function fadeIn(toAnimate,duration,opacity) {
-      toAnimate.animate({"fill-opacity":opacity,"stroke-opacity":"1"},duration, "<>");
-    }
 
     $(document).ready(function(){
       /*OTHER STUFF*/
@@ -304,16 +239,93 @@
         yStart = currentArc[2];
       }
      
-      // var circle = "circle cx=" + graphRadius + " cy=" + graphRadius + " r=" + (pieRadius-30) + " stroke=black";
-      //   paths.push(circle);
       timedLoop(paths<?php print $nid; ?>);
 
   
       $('#node-<?php print $nid; ?> .graph-canvas').css('height',canvasHeight + "px");
 
 
+      var loopCount<?php print $nid;?>=0;
+    
+    function timedLoop (paths) {
+        setTimeout(function () {
+          fadeIn<?php print $nid; ?>(paths[loopCount<?php print $nid;?>],300,"0.75");
+          loopCount<?php print $nid;?>++;
+          if (loopCount<?php print $nid;?><paths.length) {
+            timedLoop(paths);     
+          }
+        }, 300);
+    }
+    function drawArc(centerX,centerY,radius,startX,startY,percent,isLarge,used,specialFlag) {//angle passed in radians, please
+     
+      var arcString = "";
+      var arcStart = "";
+      var angle = 2 * Math.PI * (percent + used);
+      var startAngle = 2 * Math.PI * used;
+      //console.log(angle);
+      //calculate endpoint :)
+      var endX = centerX + radius * Math.cos(angle);//calculating endX by angle so far alone
+      var endY = centerY + radius * Math.sin(angle);//same problem as
+
+      var thickness = 48;
+      var results = new Array();
+      if (specialFlag != 0) { //pie with hole in the middle
+        var smallRadius = radius-thickness;
+        var smallStartX = centerX + smallRadius * Math.cos(startAngle);
+        var smallStartY = centerY + smallRadius * Math.sin(startAngle);
+        var smallEndX = centerX + smallRadius * Math.cos(angle);
+        var smallEndY = centerY + smallRadius * Math.sin(angle);
+
+        arcString = "M" + smallStartX + "," + smallStartY;
+        arcString += " ";
+
+        arcString += "L" + startX + "," + startY;
+        arcString += " ";
+
+        arcStart = arcString; //these are about to diverge
+        arcStart += "L" + smallStartX + "," + smallStartY + "z";
+
+        arcString += "A" + radius + "," + radius;
+        arcString += ",0," + isLarge + ",1 ";
+        arcString += endX + "," + endY;
+
+        arcString += "L" + smallEndX + "," + smallEndY;
+        arcString += " ";
+
+        arcString += "A" + smallRadius + "," + smallRadius;
+        arcString += ",0," + isLarge + ",0 ";
+
+        arcString += smallStartX + "," + smallStartY;
+        arcString += ",z";
+      } else {
+        //normal code
+      arcString = "M" + centerX + "," + centerY;
+      arcString += " ";//add a space
+        
+      arcString += "L" + startX + "," + startY; //initial line
+      arcString += " ";//add a space
+
+      arcString += "A" + radius + "," + radius;//we only draw circular arcs, here.
+      arcString += ",20," + isLarge + ",1 ";//some required flags and spaces
+
+      arcString += endX + "," +endY;//add the end points
+      arcString += ",z";//close the path
+      }
+
+      results[0] = arcString;
+      results[1] = endX;
+      results[2] = endY;
+      results[3] = arcStart;
+
+      return results; //returns an array with the arcString and the end coordinates
+    }
+
+    function fadeIn<?php print $nid?>(toAnimate,duration,opacity) {
+      toAnimate.animate({"fill-opacity":opacity,"stroke-opacity":"1"},duration, "<>");
+    }
     });
   </script>
+  <?php /*STANDARD NODE RENDER BELOW THIS POINT*/ ?>
   <?php print render($title_prefix); ?>
   <?php if (!$page): ?>
     <h2<?php print $title_attributes; ?>>
