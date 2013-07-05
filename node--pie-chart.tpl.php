@@ -154,6 +154,7 @@
        //     $values[] = $fc_entities[$i]-> echo $ids[$i];
        //   }
        //  dpm($values);
+       dpm($node);
   ?>
   
   <script type="text/javascript">
@@ -165,6 +166,8 @@
         var fieldCollections = <?php print drupal_json_encode($fc_entities); ?>; 
         var fc_ids = <?php print drupal_json_encode($ids); ?>;
         var percentThickness = <?php print drupal_json_encode($node->{'field_thickness_percent_'}['und'][0]['value']); ?>;
+        var rotationDeg = <?php print drupal_json_encode($node->{'field_graph_rotation'}['und'][0]['value']); ?>;
+        console.log(rotationDeg);
         //console.log(thickness);
         var $gTitle = $("<h3 class='gtitle'></h3>").html(GraphTitle);
         <?php $nid = $node->nid; ?>
@@ -213,15 +216,15 @@
       }
      // console.log(percentages);
       var paths = [];
-      var xStart = (canvasWidth/2);
-      var yStart = 20;
+      // var xStart = (canvasWidth/2);
+      // var yStart = 20;
       var isUsed = 0;
       for (i=0; i<percentages.length; i++) {
         var largeArc = 0;
         if (percentages[i]>0.5) {
           largeArc = 1;
         } //no else
-        var currentArc = drawArc((canvasWidth/2),graphRadius,pieRadius,xStart,yStart,percentages[i],largeArc,isUsed,1,percentThickness);
+        var currentArc = drawArc((canvasWidth/2),graphRadius,pieRadius,rotationDeg,percentages[i],largeArc,isUsed,1,percentThickness);
         var currentColor = fieldCollections[i][fc_ids[i]].field_color.und[0].rgb;
         //console.log(currentArc);
          
@@ -277,8 +280,8 @@
         isUsed += percentages[i];//update how much has already been consumed
        // console.log(currentArc[1]);
        // console.log(currentArc[2]);
-        xStart = currentArc[1];
-        yStart = currentArc[2];
+        // xStart = currentArc[1];
+        // yStart = currentArc[2];
       }
      
       timedLoop(paths);
@@ -298,24 +301,26 @@
             }
           }, 300);
       }
-      function drawArc(centerX,centerY,radius,startX,startY,percent,isLarge,used,specialFlag,percentThick) {//angle passed in radians, please
+      function drawArc(centerX,centerY,radius,rotation,percent,isLarge,used,specialFlag,percentThick) {//angle passed in radians, please
        
         //STRINGS FOR TOTAL ARC AND ARC TO ANIMATE FROM
         var arcString = "";
         var arcStart = "";
         var labelLine = "";
-        var adjustment = (.5*Math.PI);
-
+        var adjustment = -(.5*Math.PI); //this will be used in the negative direction
+        adjustment += (rotation/360) * 2 * Math.PI;
         //SOME ANGLE CALCULATIONS
-        var angle = (2 * Math.PI * (percent + used))-adjustment //end location
-        var halfAngle = (2 * Math.PI * ((percent/2) + used))-adjustment; //middle location, for label
-        var startAngle = (2 * Math.PI * used)-adjustment; //start location
+        var angle = (2 * Math.PI * (percent + used)) + adjustment //end location
+        var halfAngle = (2 * Math.PI * ((percent/2) + used)) + adjustment; //middle location, for label
+        var startAngle = (2 * Math.PI * used) + adjustment; //start location
+        var startX = centerX + radius * Math.cos(angle);
+        var startY = centerY + radius * Math.sin(angle);
         
-        var rad36 = (2*Math.PI)-adjustment;
-        var rad27 = (1.5*Math.PI)-adjustment;
-        var rad18 = Math.PI - adjustment;
-        var rad9 = (.5*Math.PI) - adjustment;
-        var rad0 = 0 - adjustment;
+        var rad36 = (2*Math.PI)+ adjustment;
+        var rad27 = (1.5*Math.PI)+ adjustment;
+        var rad18 = Math.PI + adjustment;
+        var rad9 = (.5*Math.PI) + adjustment;
+        var rad0 = 0 + adjustment;
         //ADJUSTMENTS FOR LABEL
         var quadrant = 1; //determine quadrant based on angle
         //if the label is on the left side of the graph, align with end of text
@@ -333,7 +338,6 @@
           halfAngle = halfAngle - (0.5 * Math.PI * percent); 
         }
         
-        
         //calculate endpoint :)
         var endX = centerX + radius * Math.cos(angle);//calculating endX by angle so far alone
         var endY = centerY + radius * Math.sin(angle);//same problem as
@@ -342,7 +346,6 @@
         var labelX = centerX + (radius+15) * Math.cos(halfAngle);
         var labelY = centerY + (radius+15) * Math.sin(halfAngle);
         
-
         var thickness = Math.floor((percentThick/100) * pieRadius);
         var results = new Array();
 
