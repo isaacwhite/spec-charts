@@ -126,11 +126,12 @@
 
     }
     .graph-spot tspan{
-      font-size: 2.5em;
-      text-transform: uppercase;
+      font-size: 2em;
+      /*text-transform: uppercase;*/
       color: #d7d7d7;
-      font-family: 'league gothic';
+      font-family: arial, helvetica;
       dominant-baseline: central;
+      font-weight: bold;
     }
   </style>
   <?php  /*RETRIEVE THE FIELD COLLECTIONS*/
@@ -235,8 +236,43 @@
                 this.stop().animate({"fill-opacity": "0.75"}, 200, "<>");
                 // txt.stop().animate({opacity: 0}, ms);
             });
-        var raphaelLabel = paper.text(currentArc[4], currentArc[5], labels[i]).attr({'text-anchor': currentArc[6]});
-        //var diagnostic = paper.circle(currentArc[4],currentArc[5],2).attr("fill","#d7d7d7","style","dominant-baseline: hanging;");
+        var roundPercent = Math.round( percentages[i] * 1000 ) / 10;
+        var currentLabel = labels[i] + "\n" + roundPercent + "%";
+        var labelAnchor = 'start';
+        console.log(currentArc[6]);
+        if (currentArc[6] > 2) {
+          labelAnchor = 'end';
+        }
+        var raphaelLabel = paper.text(currentArc[4], currentArc[5], currentLabel).attr({'text-anchor': labelAnchor,"font-size": 8});
+        var bbox = raphaelLabel.getBBox();
+        var labelTX = bbox.x;
+        var labelTY = bbox.y;
+        var labelBX = bbox.x2;
+        var labelBY = bbox.y2;
+
+        if (labelTY < 0) {
+          console.log("MOVE DOWN");
+          var moveAmt = 0 - labelTY;
+          raphaelLabel.translate(0,moveAmt);
+        }
+        if (labelBY > canvasHeight) {
+          console.log("MOVE UP");
+          var moveAmt = canvasHeight - labelBY;
+          raphaelLabel.translate(0, moveAmt);
+        }
+        if (labelTX < 0) {
+          console.log("MOVE RIGHT");
+          var moveAmt = 0 - labelTX;
+          raphaelLaebl.translate(moveAmt,0);
+        }
+        if (labelBX > canvasWidth) {
+          console.log("MOVE LEFT");
+          var moveAmt = canvasWidth - labelBX;
+          raphaelLabel.translate(moveAmt,0);
+        }
+        // console.log(bbox);
+        // console.log(bbox.height);
+        var diagnostic = paper.circle(currentArc[4],currentArc[5],2).attr("fill","#d7d7d7","style","dominant-baseline: hanging;");
         paths.push(raphaelObject);
         isUsed += percentages[i];//update how much has already been consumed
        // console.log(currentArc[1]);
@@ -267,24 +303,37 @@
         //STRINGS FOR TOTAL ARC AND ARC TO ANIMATE FROM
         var arcString = "";
         var arcStart = "";
+        var labelLine = "";
+        var adjustment = (.5*Math.PI);
 
         //SOME ANGLE CALCULATIONS
-        var angle = (2 * Math.PI * (percent + used))-(.5*Math.PI); //end location
-        var halfAngle = (2 * Math.PI * ((percent/2) + used))-(.5*Math.PI); //middle location, for label
-        var startAngle = (2 * Math.PI * used)-(.5*Math.PI); //start location
+        var angle = (2 * Math.PI * (percent + used))-adjustment //end location
+        var halfAngle = (2 * Math.PI * ((percent/2) + used))-adjustment; //middle location, for label
+        var startAngle = (2 * Math.PI * used)-adjustment; //start location
+        
+        var rad36 = (2*Math.PI)-adjustment;
+        var rad27 = (1.5*Math.PI)-adjustment;
+        var rad18 = Math.PI - adjustment;
+        var rad9 = (.5*Math.PI) - adjustment;
+        var rad0 = 0 - adjustment;
+        //ADJUSTMENTS FOR LABEL
+        var quadrant = 1; //determine quadrant based on angle
+        //if the label is on the left side of the graph, align with end of text
+        if (rad27 < halfAngle) {
+          quadrant = 4;
+        } else if ( (rad18 < halfAngle) && (halfAngle < rad27) ) {
+          quadrant = 3;
+        } else if ( (rad9 < halfAngle) && (halfAngle < rad18) ) {
+          quadrant = 2;
+        } //no regular else
+
 
         //adjust the "middle" location depending on total length and calculated location for label
         if (((1.3*Math.PI) < angle) && (angle < (1.5*Math.PI))) {
           halfAngle = halfAngle - (0.5 * Math.PI * percent); 
         }
         
-        //ADJUSTMENTS FOR LABEL
-        var pastHalf = 'start'; //default case
-        //if the label is on the left side of the graph, align with end of text
-        if (((Math.PI/2) < angle) && (angle < (1.5*Math.PI)) ) {
-          pastHalf = 'end';
-        } //no else
-
+        
         //calculate endpoint :)
         var endX = centerX + radius * Math.cos(angle);//calculating endX by angle so far alone
         var endY = centerY + radius * Math.sin(angle);//same problem as
@@ -347,7 +396,7 @@
         results[3] = arcStart;
         results[4] = labelX;
         results[5] = labelY;
-        results[6] = pastHalf;
+        results[6] = quadrant;
 
         return results; //returns an array with the arcString and the end coordinates
       }
