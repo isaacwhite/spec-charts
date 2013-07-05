@@ -80,15 +80,6 @@
 ?>
 <div id="node-<?php print $node->nid; ?>" class="<?php print $classes; ?> clearfix"<?php print $attributes; ?>>
 
-  <?php
-  //Load the field ids
-  $fc_fields = field_get_items('node', $node, 'field_value_and_label');
-  $ids = array();
-  foreach ($fc_fields as $fc_field) {
-     $ids = $fc_field['value'];
-  } //put the ids into an array
-  
-   ?>
   <style>
     .outer-bar {
       margin: 0 .5%;
@@ -102,19 +93,19 @@
     .inner-bar {
       height: 0%;
       width: 100%;
-      background-color: #00BFFF;
       cursor: pointer;
       position:absolute;
       bottom:0;
+      opacity: .75;
     }
     .inner-bar.loaded {
       /*transition: all .1s linear;*/
     }
     .inner-bar:hover {
-      background-color: yellow;
+      opacity: 1;
     }
     .graph-spot {
-      height:400px;
+      height:401px;
       box-sizing: border-box;
       position: relative;
       z-index: 2;
@@ -175,12 +166,11 @@
           $fc_entities[]= entity_load('field_collection_item', array($ids[$i]));
        };
   ?>
-  <script src="/themes/bartik/js/jquery-1.9.1.min.js"></script>
   <script type="text/javascript">
   //we don't want any global variables in case there are multiple graphs, or else all the graph values will be the same.
     $(document).ready(function(){
 
-    var GraphTitle = <?php print drupal_json_encode($title); ?>;
+      var GraphTitle = <?php print drupal_json_encode($title); ?>;
       var VertUnit = <?php print drupal_json_encode($node->field_vertical_unit); ?>;
       var HorzUnit = <?php print drupal_Json_encode($node->field_horizontal_unit); ?>;
       var lineCountRaw = <?php print drupal_json_encode($node->field_number_of_horizontal_lines); ?>;
@@ -205,11 +195,11 @@
         if (height>prevMax) {
           prevMax = height;
         }
-        
+        var currentColor = fieldCollections[i][fc_ids[i]].field_color.und[0].rgb;
         var newBar = $("<div class='outer-bar'>")
           .attr('style', 'height: ' + height.toFixed(0) + 'px;' + ' width:' + percentWidth + "%;" )
           .append(
-              $("<div class='inner-bar'></div>")
+              $("<div class='inner-bar'></div>").attr('style', 'background-color:' + currentColor + ';' )
             );
         //var inBar = $("<div class='in-bar'>");
        // var wholeBar = $(inBar.wrap(newBar));
@@ -221,12 +211,12 @@
         $('#node-<?php print $nid; ?> .graph-labels').append($graphLabel);
 
       }
-      var divCount = lineCount + 1;
+      var divCount = lineCount;
       var divHeight = canvasHeight/divCount;
       //console.log(canvasHeight);
       //console.log(divHeight);
       // console.log(lineCount);
-      for (i=0; i<lineCount+1;i++) {
+      for (i=0; i<lineCount;i++) {
         var $horzLine = $("<div class='horz-line'></div>");
         $horzLine.html((divCount-i)*(maxHeight/divCount)).attr('style', 'height:' + divHeight + "px;");
         $('#node-<?php print $nid; ?> .graph-canvas').append($horzLine);

@@ -125,6 +125,13 @@
       stroke-opacity: 0;
 
     }
+    .graph-spot tspan{
+      font-size: 2.5em;
+      text-transform: uppercase;
+      color: #d7d7d7;
+      font-family: 'league gothic';
+      dominant-baseline: central;
+    }
   </style>
   <?php  /*RETRIEVE THE FIELD COLLECTIONS*/
     $fc_fields = field_get_items('node', $node, 'field_value_and_label');
@@ -140,6 +147,7 @@
        for ( $i=0; $i< count($ids); $i++) {
           $fc_entities[]= entity_load('field_collection_item', array($ids[$i]));
        };
+       // dpm($fc_entities);
        $values = array();
        // for ($i=0; $i<count($fc_entities); $i++) {
        //     $values[] = $fc_entities[$i]-> echo $ids[$i];
@@ -155,6 +163,7 @@
         var GraphTitle = <?php print drupal_json_encode($title); ?>;
         var fieldCollections = <?php print drupal_json_encode($fc_entities); ?>; 
         var fc_ids = <?php print drupal_json_encode($ids); ?>;
+        var percentThickness = <?php print drupal_json_encode($node->{'field_thickness_percent_'}['und'][0]['value']); ?>;
         //console.log(thickness);
         var $gTitle = $("<h3 class='gtitle'></h3>").html(GraphTitle);
         <?php $nid = $node->nid; ?>
@@ -168,14 +177,9 @@
         } else {
           graphRadius = Math.floor(canvasWidth/2);
         }
-        //console.log(fc_ids);
-        //console.log(graphRadius);
-        //console.log(canvasPosition);
-        pieRadius = graphRadius - 20;
-        //console.log(startPoint);
-        //console.log(canvasHeight);
+        pieRadius = graphRadius - 20; //leave extra padding based on shortest side
         $gTitle.insertBefore($('#node-<?php print $nid; ?> .graph'));
-        paper<?php print $nid;?> = Raphael($("#node-<?php print $nid; ?> .graph-spot")[0], canvasWidth, canvasHeight);
+        paper = Raphael($("#node-<?php print $nid; ?> .graph-spot")[0], canvasWidth, canvasHeight);
         
         //var currentArc = drawArc(graphRadius, graphRadius,pieRadius,(graphRadius+pieRadius),graphRadius,.4,1);
         //console.log(currentArc);
@@ -183,6 +187,7 @@
         //$newArc.attr({fill:'#d7d7d7'});
         //iterate over the data in field collections
         var values = [];
+        var labels =[];
         var total = parseInt(0);
         for (i=0; i<fieldCollections.length; i++) {
           var rawHeight = fieldCollections[i][fc_ids[i]].field_value.und[0].value;
@@ -190,7 +195,8 @@
           //console.log(rawHeight);
           //console.log(sgLabel);
           values.push(rawHeight);
-          total += parseInt(rawHeight);
+          labels.push(sgLabel);
+          total += parseFloat(rawHeight);
           var $graphLabel = $("<div class='glabel'></div>");
           //$graphLabel.html(sgLabel).attr('style','width:' + percentWidth + "%;");
           //console.log(graphLabel);
@@ -205,20 +211,20 @@
         percentages.push(values[i]/total);
       }
      // console.log(percentages);
-      var paths<?php print $nid; ?> = [];
-      var xStart = (graphRadius+pieRadius)
-      var yStart = graphRadius;
+      var paths = [];
+      var xStart = (canvasWidth/2);
+      var yStart = 20;
       var isUsed = 0;
       for (i=0; i<percentages.length; i++) {
         var largeArc = 0;
         if (percentages[i]>0.5) {
           largeArc = 1;
         } //no else
-        var currentArc = drawArc(graphRadius,graphRadius,pieRadius,xStart,yStart,percentages[i],largeArc,isUsed,1);
+        var currentArc = drawArc((canvasWidth/2),graphRadius,pieRadius,xStart,yStart,percentages[i],largeArc,isUsed,1,percentThickness);
         var currentColor = fieldCollections[i][fc_ids[i]].field_color.und[0].rgb;
         //console.log(currentArc);
          
-        var raphaelObject = paper<?php print $nid;?>.path(currentArc[0]).attr({
+        var raphaelObject = paper.path(currentArc[0]).attr({
           fill: currentColor,
           stroke: "white",
           "stroke-width": 2
@@ -229,9 +235,9 @@
                 this.stop().animate({"fill-opacity": "0.75"}, 200, "<>");
                 // txt.stop().animate({opacity: 0}, ms);
             });
-
-       
-        paths<?php print $nid; ?>.push(raphaelObject);
+        var raphaelLabel = paper.text(currentArc[4], currentArc[5], labels[i]).attr({'text-anchor': currentArc[6]});
+        //var diagnostic = paper.circle(currentArc[4],currentArc[5],2).attr("fill","#d7d7d7","style","dominant-baseline: hanging;");
+        paths.push(raphaelObject);
         isUsed += percentages[i];//update how much has already been consumed
        // console.log(currentArc[1]);
        // console.log(currentArc[2]);
@@ -239,107 +245,122 @@
         yStart = currentArc[2];
       }
      
-      timedLoop(paths<?php print $nid; ?>);
+      timedLoop(paths);
 
   
       $('#node-<?php print $nid; ?> .graph-canvas').css('height',canvasHeight + "px");
 
 
-      var loopCount<?php print $nid;?>=0;
+      var loopCount=0;
     
-    function timedLoop (paths) {
-        setTimeout(function () {
-          fadeIn<?php print $nid; ?>(paths[loopCount<?php print $nid;?>],300,"0.75");
-          loopCount<?php print $nid;?>++;
-          if (loopCount<?php print $nid;?><paths.length) {
-            timedLoop(paths);     
-          }
-        }, 300);
-    }
-    function drawArc(centerX,centerY,radius,startX,startY,percent,isLarge,used,specialFlag) {//angle passed in radians, please
-     
-      var arcString = "";
-      var arcStart = "";
-      var angle = 2 * Math.PI * (percent + used);
-      var startAngle = 2 * Math.PI * used;
-      //console.log(angle);
-      //calculate endpoint :)
-      var endX = centerX + radius * Math.cos(angle);//calculating endX by angle so far alone
-      var endY = centerY + radius * Math.sin(angle);//same problem as
+      function timedLoop(paths) {
+          setTimeout(function () {
+            fadeIn(paths[loopCount],300,"0.75");
+            loopCount++;
+            if (loopCount<paths.length) {
+              timedLoop(paths);     
+            }
+          }, 300);
+      }
+      function drawArc(centerX,centerY,radius,startX,startY,percent,isLarge,used,specialFlag,percentThick) {//angle passed in radians, please
+       
+        //STRINGS FOR TOTAL ARC AND ARC TO ANIMATE FROM
+        var arcString = "";
+        var arcStart = "";
 
-      var thickness = 48;
-      var results = new Array();
-      if (specialFlag != 0) { //pie with hole in the middle
-        var smallRadius = radius-thickness;
-        var smallStartX = centerX + smallRadius * Math.cos(startAngle);
-        var smallStartY = centerY + smallRadius * Math.sin(startAngle);
-        var smallEndX = centerX + smallRadius * Math.cos(angle);
-        var smallEndY = centerY + smallRadius * Math.sin(angle);
+        //SOME ANGLE CALCULATIONS
+        var angle = (2 * Math.PI * (percent + used))-(.5*Math.PI); //end location
+        var halfAngle = (2 * Math.PI * ((percent/2) + used))-(.5*Math.PI); //middle location, for label
+        var startAngle = (2 * Math.PI * used)-(.5*Math.PI); //start location
 
-        arcString = "M" + smallStartX + "," + smallStartY;
-        arcString += " ";
-
-        arcString += "L" + startX + "," + startY;
-        arcString += " ";
-
-        arcStart = arcString; //these are about to diverge
-        arcStart += "L" + smallStartX + "," + smallStartY + "z";
-
-        arcString += "A" + radius + "," + radius;
-        arcString += ",0," + isLarge + ",1 ";
-        arcString += endX + "," + endY;
-
-        arcString += "L" + smallEndX + "," + smallEndY;
-        arcString += " ";
-
-        arcString += "A" + smallRadius + "," + smallRadius;
-        arcString += ",0," + isLarge + ",0 ";
-
-        arcString += smallStartX + "," + smallStartY;
-        arcString += ",z";
-      } else {
-        //normal code
-      arcString = "M" + centerX + "," + centerY;
-      arcString += " ";//add a space
+        //adjust the "middle" location depending on total length and calculated location for label
+        if (((1.3*Math.PI) < angle) && (angle < (1.5*Math.PI))) {
+          halfAngle = halfAngle - (0.5 * Math.PI * percent); 
+        }
         
-      arcString += "L" + startX + "," + startY; //initial line
-      arcString += " ";//add a space
+        //ADJUSTMENTS FOR LABEL
+        var pastHalf = 'start'; //default case
+        //if the label is on the left side of the graph, align with end of text
+        if (((Math.PI/2) < angle) && (angle < (1.5*Math.PI)) ) {
+          pastHalf = 'end';
+        } //no else
 
-      arcString += "A" + radius + "," + radius;//we only draw circular arcs, here.
-      arcString += ",20," + isLarge + ",1 ";//some required flags and spaces
+        //calculate endpoint :)
+        var endX = centerX + radius * Math.cos(angle);//calculating endX by angle so far alone
+        var endY = centerY + radius * Math.sin(angle);//same problem as
+        
+        //caculate the label location, with some distance from the graph
+        var labelX = centerX + (radius+15) * Math.cos(halfAngle);
+        var labelY = centerY + (radius+15) * Math.sin(halfAngle);
+        
 
-      arcString += endX + "," +endY;//add the end points
-      arcString += ",z";//close the path
+        var thickness = Math.floor((percentThick/100) * pieRadius);
+        var results = new Array();
+
+        //MAKE THE STRING, WITH SWITCH FOR EMPTY MIDDLE
+        if (specialFlag != 0) { //pie with hole in the middle
+          var smallRadius = radius-thickness;
+          var smallStartX = centerX + smallRadius * Math.cos(startAngle);
+          var smallStartY = centerY + smallRadius * Math.sin(startAngle);
+          var smallEndX = centerX + smallRadius * Math.cos(angle);
+          var smallEndY = centerY + smallRadius * Math.sin(angle);
+
+          arcString = "M" + smallStartX + "," + smallStartY;
+          arcString += " ";
+
+          arcString += "L" + startX + "," + startY;
+          arcString += " ";
+
+          arcStart = arcString; //these are about to diverge
+          arcStart += "L" + smallStartX + "," + smallStartY + "z";
+
+          arcString += "A" + radius + "," + radius;
+          arcString += ",0," + isLarge + ",1 ";
+          arcString += endX + "," + endY;
+
+          arcString += "L" + smallEndX + "," + smallEndY;
+          arcString += " ";
+
+          arcString += "A" + smallRadius + "," + smallRadius;
+          arcString += ",0," + isLarge + ",0 ";
+
+          arcString += smallStartX + "," + smallStartY;
+          arcString += ",z";
+        } else {
+          //normal code
+        arcString = "M" + centerX + "," + centerY;
+        arcString += " ";//add a space
+          
+        arcString += "L" + startX + "," + startY; //initial line
+        arcString += " ";//add a space
+
+        arcString += "A" + radius + "," + radius;//we only draw circular arcs, here.
+        arcString += ",20," + isLarge + ",1 ";//some required flags and spaces
+
+        arcString += endX + "," +endY;//add the end points
+        arcString += ",z";//close the path
+        }
+
+        results[0] = arcString;
+        results[1] = endX;
+        results[2] = endY;
+        results[3] = arcStart;
+        results[4] = labelX;
+        results[5] = labelY;
+        results[6] = pastHalf;
+
+        return results; //returns an array with the arcString and the end coordinates
       }
 
-      results[0] = arcString;
-      results[1] = endX;
-      results[2] = endY;
-      results[3] = arcStart;
+      function fadeIn(toAnimate,duration,opacity) {
+        toAnimate.animate({"fill-opacity":opacity,"stroke-opacity":"1"},duration, "<>");
+      }
 
-      return results; //returns an array with the arcString and the end coordinates
-    }
-
-    function fadeIn<?php print $nid?>(toAnimate,duration,opacity) {
-      toAnimate.animate({"fill-opacity":opacity,"stroke-opacity":"1"},duration, "<>");
-    }
     });
+
   </script>
   <?php /*STANDARD NODE RENDER BELOW THIS POINT*/ ?>
-  <?php print render($title_prefix); ?>
-  <?php if (!$page): ?>
-    <h2<?php print $title_attributes; ?>>
-      <a href="<?php print $node_url; ?>"><?php print $title; ?></a>
-    </h2>
-  <?php endif; ?>
-  <?php print render($title_suffix); ?>
-
-  <?php if ($display_submitted): ?>
-    <div class="meta submitted">
-      <?php print $user_picture; ?>
-      <?php print $submitted; ?>
-    </div>
-  <?php endif; ?>
+  
 
   <div class="content clearfix"<?php print $content_attributes; ?>>
     <div class="graph">
