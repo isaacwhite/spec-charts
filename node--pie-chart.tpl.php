@@ -288,22 +288,22 @@
         if (labelTY < 0) {
           console.log("MOVE DOWN");
           var moveAmt = 0 - labelTY;
-          raphaelLabel.translate(0,moveAmt);
+          raphaelLabel.transform("t0," + moveAmt);
         } else if (labelBY > canvasHeight) { 
           console.log("MOVE UP");
           var moveAmt = canvasHeight - labelBY;
-          raphaelLabel.translate(0, moveAmt);
+          raphaelLabel.transform("t0," + moveAmt);
         }
 
         //x axis
         if (labelTX < 0) {
           console.log("MOVE RIGHT");
           var moveAmt = 0 - labelTX;
-          raphaelLaebl.translate(moveAmt,0);
+          raphaelLaebl.transform("t" + moveAmt + ",0");
         } else if (labelBX > canvasWidth) {
           console.log("MOVE LEFT");
           var moveAmt = canvasWidth - labelBX;
-          raphaelLabel.translate(moveAmt,0);
+          raphaelLabel.transform("t" + moveAmt + ",0");
         }
 
         //DIAGNOSTIC CIRCLE
@@ -367,8 +367,8 @@
       while ((labelsLeft != labelsRight) && (labelsLeft - labelsRight != 1)) {
         console.log(i);
         var labelNumber = posCheck[i][1]; //access the label number);
-        var toTranslate = posCheck[i][0] + (labelObjects[labelNumber].getBBox().width/2);//how much to move the label
-        labelObjects[labelNumber].translate(toTranslate,0);//move it
+        var toTransform = posCheck[i][0] + (labelObjects[labelNumber].getBBox().width/2);//how much to move the label
+        labelObjects[labelNumber].transform("t" + toTransform + ",0");//move it
         labelObjects[labelNumber].attr({'text-anchor': 'start'});//adjust the anchor
         labelsRight++;//increment count of right labels
         labelsLeft--;//decrement count of left labels
@@ -382,8 +382,8 @@
       while ((labelsLeft != labelsRight) &&  (labelsRight - labelsLeft != 1)) {
         console.log(i);
         var labelNumber = posCheck[i][1]; //access the label number);
-        var toTranslate = posCheck[i][0] - (labelObjects[labelNumber].getBBox().width/2);//how much to move the label
-        labelObjects[labelNumber].translate(toTranslate,0);//move it
+        var toTransform = posCheck[i][0] - (labelObjects[labelNumber].getBBox().width/2);//how much to move the label
+        labelObjects[labelNumber].transform("t" + toTransform + ",0");//move it
         labelObjects[labelNumber].attr({'text-anchor': 'end'});//adjust the anchor
         labelsRight--;//decrement the count of right labels
         labelsLeft++;//increment the count of left labels
