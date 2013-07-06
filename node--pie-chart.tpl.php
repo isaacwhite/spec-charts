@@ -180,7 +180,9 @@
         } else {
           graphRadius = Math.floor(canvasWidth/2);
         }
-        pieRadius = graphRadius - 20; //leave extra padding based on shortest side
+        pieRadius = graphRadius * .8; //leave extra padding based on shortest side
+        console.log(graphRadius-20);
+        console.log(pieRadius);
         $gTitle.insertBefore($('#node-<?php print $nid; ?> .graph'));
         paper = Raphael($("#node-<?php print $nid; ?> .graph-spot")[0], canvasWidth, canvasHeight);
         
@@ -215,9 +217,11 @@
       }
       // console.log(percentages);
       var paths = [];
+      var labelObjects = [];
       // var xStart = (canvasWidth/2);
       // var yStart = 20;
       var isUsed = 0;
+      var xCenter = canvasWidth/2;
       for (i=0; i<percentages.length; i++) {
         var largeArc = 0;
         if (percentages[i]>0.5) {
@@ -238,14 +242,19 @@
                 this.stop().animate({"fill-opacity": "0.75"}, 200, "<>");
                 // txt.stop().animate({opacity: 0}, ms);
             });
+        //calculate the percentage value 
         var roundPercent = Math.round( percentages[i] * 1000 ) / 10;
+        
         var currentLabel = labels[i] + "\n" + roundPercent + "%";
+        
         var labelAnchor = 'start';
-        //console.log(currentArc[6]);
-        if (currentArc[6] > 2) {
+
+        //adjust the alignment of the text based on quadrant
+        if (currentArc[6] > 2) { 
           labelAnchor = 'end';
         }
         var raphaelLabel = paper.text(currentArc[4], currentArc[5], currentLabel).attr({'text-anchor': labelAnchor,"font-size": 8});
+        labelObjects.push(raphaelLabel);
         var bbox = raphaelLabel.getBBox();
         var labelTX = bbox.x;
         var labelTY = bbox.y;
@@ -272,11 +281,81 @@
           var moveAmt = canvasWidth - labelBX;
           raphaelLabel.translate(moveAmt,0);
         }
-        var diagnostic = paper.circle(currentArc[4],currentArc[5],2).attr("fill","#d7d7d7","style","dominant-baseline: hanging;");
+        var diagnostic = paper.circle(currentArc[4],currentArc[5],1).attr("fill","#d7d7d7","style","dominant-baseline: hanging;");
         paths.push(raphaelObject);
         isUsed += percentages[i];//update how much has already been consumed
       }
-     
+    // console.log(labelObjects);
+    var setOfPaths = paper.set();
+    
+    for (i=0; i<paths.length;i++) {
+      setOfPaths.push(paths[i]);
+    }
+    
+    var posCheck = [];
+    //check whether the labels are left or right of center
+    var labelsLeft = 0;
+    var labelsRight = 0;
+    for (i=0; i<labelObjects.length; i++ ) {
+      var thisBox = labelObjects[i].getBBox();
+      var query = [];
+      if (thisBox.x2 < xCenter)  {
+        console.log("left of center");
+        query.push(xCenter - thisBox.x2);
+        query.push(i);
+        labelsLeft++;
+      } else if (thisBox.x > xCenter) {
+        console.log("right of center");
+        query.push(xCenter - thisBox.x);
+        query.push(i);
+        labelsRight++;
+      }
+      // console.log(query);
+      posCheck.push(query);
+    }
+    // console.log(posCheck);
+
+    //function to sort the labels by distance from middle of graph
+    function compareLabelPos(label1,label2) {
+      if (label1[0] < label2[0]) {
+        return -1;
+      } else if (label1[0] > label2[0]) {
+        return 1;
+      } else {
+        return 0;
+      }
+    }
+    posCheck.sort(compareLabelPos);
+    console.log("Labels Left: " + labelsLeft);
+    console.log("Labels Right: " + labelsRight);
+    console.log(posCheck);
+    if (labelsLeft > labelsRight) {
+      var i = labelsRight; //set starting point to array index number of right labels
+      while (labelsLeft != labelsRight) {
+        var labelNumber = posCheck[i][1]; //access the label number);
+        var toTranslate = posCheck[i][0] + labelObjects[labelNumber].getBBox().width;//how much to move the label
+        labelObjects[labelNumber].translate(toTranslate,0);
+        labelsRight++;
+        labelsLeft--;
+        i++;
+      }
+    } else if (labelsRight > labelsLeft) {
+      var i = labelObjects.length - labelsLeft -1;
+      while (labelsLeft != labelsRight) {
+        var labelNumber = posCheck[i][1]; //access the label number);
+        // console.log(labelNumber);
+        console.log(posCheck[i][0]);
+        var toTranslate = posCheck[i][0] - labelObjects[labelNumber].getBBox().width;//how much to move the label
+        console.log(toTranslate);
+        labelObjects[labelNumber].translate(toTranslate,0);
+        labelsRight--;
+        labelsLeft++;
+        i--;
+      }
+    }
+
+    var groupBbox = setOfPaths.getBBox();
+    // console.log(groupBbox);
       timedLoop(paths);
 
   
@@ -312,30 +391,29 @@
         var rotationRad = (rotation/360) * 2 * Math.PI;
         var adjustment = totalAdj; // subtract 1/2 PI to get 12 o clock position
         totalAdj += rotationRad;//set total adjustment based on rotation parameter
-        // console.log(adjustment);
+
         //SOME ANGLE CALCULATIONS
         var angle = (2 * Math.PI * (percent + used)) + totalAdj //end location
         var halfAngle = (2 * Math.PI * ((percent/2) + used)) + totalAdj; //middle location, for label
         var startAngle = (2 * Math.PI * used) + totalAdj; //start location
 
-        var startX = centerX + radius * Math.cos(startAngle);
+        var startX = centerX + radius * Math.cos(startAngle);//calculate outside start
         var startY = centerY + radius * Math.sin(startAngle);
         
         //standard values to compare against
-        var rad36 = (2*Math.PI) + adjustment;
-        var rad27 = (1.5*Math.PI) + adjustment;
-        var rad18 = Math.PI + adjustment;
-        var rad9 = (.5*Math.PI) + adjustment;
-        var rad0 = 0 + adjustment;
+        var rad36 = (2*Math.PI) + adjustment; //270
+        var rad27 = (1.5*Math.PI) + adjustment; //180
+        var rad18 = Math.PI + adjustment; //90
+        var rad9 = (.5*Math.PI) + adjustment; //0
+        var rad0 = 0 + adjustment; //-90
 
 
         //ADJUSTMENTS FOR LABEL
-
-        if (halfAngle > 2*Math.PI) {
+        //correct values larger than 2 PI
+        if (halfAngle > 1.5*Math.PI) { //adjust this an extra quarter to account for svg graph space
           halfAngle = halfAngle - (2 * Math.PI);
-        }
-        console.log(toDegrees(halfAngle));
-        // console.log(halfAngleDeg);
+        } 
+
         var quadrant = 1; //determine quadrant based on angle
         //if the label is on the left side of the graph, align with end of text
         if (rad27 < halfAngle && halfAngle < rad36) {
@@ -344,23 +422,33 @@
           quadrant = 3;
         } else if ( (rad9 < halfAngle) && (halfAngle < rad18) ) {
           quadrant = 2;
-        } else {
-          console.log("DEFAULT CASE");
-        }
+        } 
 
-        console.log(quadrant);
-        //adjust the "middle" location depending on total length and calculated location for label
-        if (((1.3*Math.PI) < angle) && (angle < (1.5*Math.PI))) {
-          halfAngle = halfAngle - (0.5 * Math.PI * percent); 
-        }
+        //Math.PI/6 == 30
+        //Math.PI/3 == 60
+
+        //check cases for moving labels away from bottom of graph
+        if ( ( rad0 < halfAngle && halfAngle < -Math.PI/6 ) || (rad18 < halfAngle && halfAngle < (rad27 - Math.PI/3)) ) { //this will cause error because rad9 is equal to zero
+          console.log("rotate label right quarter");
+          halfAngle = halfAngle + (percent * Math.PI * 0.5);//add a quarter percent to the location
+        } else if (( (rad27 + Math.PI/3) < halfAngle && halfAngle < rad36) || ((rad9 + Math.PI/3)< halfAngle && halfAngle < rad18) ) {
+          console.log("rotate label left quarter");
+          halfAngle = halfAngle - (percent * Math.PI * 0.5);
+        }// } else if (rad18 < halfAngle && halfAngle < (rad27 - Math.PI/3)) {
+        //   console.log("rotate label upleft quarter");
+        //   halfAngle = halfAngle + (percent * Math.PI * 0.5);
+        // } else if ((rad9 + Math.PI/3)< halfAngle && halfAngle < rad18) {
+        //   console.log("rotate label upright quarter");
+        //   halfAngle = halfAngle - (percent * Math.PI*0.5);
+        // }
         
         //calculate endpoint :)
         var endX = centerX + radius * Math.cos(angle);//calculating endX by angle so far alone
         var endY = centerY + radius * Math.sin(angle);//same problem as
         
         //caculate the label location, with some distance from the graph
-        var labelX = centerX + (radius+15) * Math.cos(halfAngle);
-        var labelY = centerY + (radius+15) * Math.sin(halfAngle);
+        var labelX = centerX + (radius+1) * Math.cos(halfAngle);
+        var labelY = centerY + (radius+1) * Math.sin(halfAngle);
         
         var thickness = Math.floor((percentThick/100) * pieRadius);
         var results = new Array();
