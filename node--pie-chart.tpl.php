@@ -135,185 +135,215 @@
     }
   </style>
   <?php  /*RETRIEVE THE FIELD COLLECTIONS*/
-    $fc_fields = field_get_items('node', $node, 'field_value_and_label');
-        $ids = array();
         
-        foreach ($fc_fields as $fc_field) {
-           $ids[] = $fc_field['value'];
-        } //put the ids into an array
+      //retreive field collection ids and extract for retreival
+      $fc_fields = field_get_items('node', $node, 'field_value_and_label');
+      $ids = array();
+      foreach ($fc_fields as $fc_field) {
+         $ids[] = $fc_field['value'];
+      } //put the ids into an array
   
-       //make a new array of the actual field colleciton entities
-       $fc_entities = array();
-   
-       for ( $i=0; $i< count($ids); $i++) {
+      //make a new array of the actual field colleciton entities
+      $fc_entities = array();
+      for ( $i=0; $i< count($ids); $i++) {
           $fc_entities[]= entity_load('field_collection_item', array($ids[$i]));
-       };
-       // dpm($fc_entities);
-       $values = array();
-       // for ($i=0; $i<count($fc_entities); $i++) {
-       //     $values[] = $fc_entities[$i]-> echo $ids[$i];
-       //   }
-       //  dpm($values);
+      };
+
+      //assign variable to reference nid later
+      $nid = $node->nid;
   ?>
   
   <script type="text/javascript">
   //we don't want any global variables in case there are multiple graphs, or else all the graph values will be the same.
 
     $(document).ready(function(){
-      /*OTHER STUFF*/
-        var GraphTitle = <?php print drupal_json_encode($title); ?>;
-        var fieldCollections = <?php print drupal_json_encode($fc_entities); ?>; 
-        var fc_ids = <?php print drupal_json_encode($ids); ?>;
-        var percentThickness = <?php print drupal_json_encode($node->{'field_thickness_percent_'}['und'][0]['value']); ?>;
-        var rotationDeg = <?php print drupal_json_encode($node->{'field_graph_rotation'}['und'][0]['value']); ?>;
-        console.log(rotationDeg);
-        //console.log(thickness);
-        var $gTitle = $("<h3 class='gtitle'></h3>").html(GraphTitle);
-        <?php $nid = $node->nid; ?>
-        $('#node-<?php print $nid; ?> .graph').append('<div class="graph-spot"></div>').append('<div class="graph-canvas"></div>').append('<div class="graph-labels"></div>').append('<div class="x-axis-label"></div>');
-        var canvasHeight = $('#node-<?php print $nid; ?> .graph-spot').height();
-        var canvasWidth =  $('#node-<?php print $nid; ?> .graph-spot').width();
-        var canvasPosition = $('#node-<?php print $nid; ?> .graph-spot').position();
-        var graphRadius = -1;
+      //GET VARIABLES FROM PHP
+      var GraphTitle = <?php print drupal_json_encode($title); ?>;
+      var fieldCollections = <?php print drupal_json_encode($fc_entities); ?>; 
+      var fc_ids = <?php print drupal_json_encode($ids); ?>;
+      var percentThickness = <?php print drupal_json_encode($node->{'field_thickness_percent_'}['und'][0]['value']); ?>;
+      var rotationDeg = <?php print drupal_json_encode($node->{'field_graph_rotation'}['und'][0]['value']); ?>;
+        
+      //set the value of the graph title object
+      var $gTitle = $("<h3 class='gtitle'></h3>").html(GraphTitle);
+      //insert the area to render the graph in
+      $('#node-<?php print $nid; ?> .graph').append('<div class="graph-spot"></div>').append('<div class="graph-canvas"></div>').append('<div class="graph-labels"></div>').append('<div class="x-axis-label"></div>');
+      
+      //figure out how tall/wide it can be from the CSS, which is reponsive
+      var canvasHeight = $('#node-<?php print $nid; ?> .graph-spot').height();
+      var canvasWidth =  $('#node-<?php print $nid; ?> .graph-spot').width();
+      
+      //set the height on the graph canvas
+      $('#node-<?php print $nid; ?> .graph-canvas').css('height',canvasHeight + "px");
+     
+      //calculate maximum radius based on available space
+      var graphRadius = -1; //default case to indicate an error
         if (canvasHeight < canvasWidth) {
           graphRadius = Math.floor(canvasHeight/2);
         } else {
           graphRadius = Math.floor(canvasWidth/2);
         }
-        pieRadius = graphRadius * .8; //leave extra padding based on shortest side
-        console.log(graphRadius-20);
-        console.log(pieRadius);
-        $gTitle.insertBefore($('#node-<?php print $nid; ?> .graph'));
-        paper = Raphael($("#node-<?php print $nid; ?> .graph-spot")[0], canvasWidth, canvasHeight);
         
-        //var currentArc = drawArc(graphRadius, graphRadius,pieRadius,(graphRadius+pieRadius),graphRadius,.4,1);
-        //console.log(currentArc);
-        //var $newArc = paper.path(currentArc[0]);
-        //$newArc.attr({fill:'#d7d7d7'});
-        //iterate over the data in field collections
-        var values = [];
-        var labels =[];
-        var total = parseInt(0);
-        for (i=0; i<fieldCollections.length; i++) {
+        //leave extra padding based on shortest side
+        pieRadius = graphRadius * .8; 
+        
+        //insert the graph title
+        $gTitle.insertBefore($('#node-<?php print $nid; ?> .graph'));
+        //initialize Raphael library on the designated area passing width and height
+        paper = Raphael($("#node-<?php print $nid; ?> .graph-spot")[0], canvasWidth, canvasHeight);
+       
+        var values = []; //array to store numbers passed into field collections
+        var labels = []; // array to store labels from field collecitons
+        var total = 0; //initial value for total amount passed as value, used to calculate percentages
+
+        for (i=0; i<fieldCollections.length; i++) { 
+          //iterate over hte field collections, 
+          //accessing by field collection id
           var rawHeight = fieldCollections[i][fc_ids[i]].field_value.und[0].value;
           var sgLabel = fieldCollections[i][fc_ids[i]].field_label.und[0].safe_value;
-          //console.log(rawHeight);
-          //console.log(sgLabel);
-          values.push(rawHeight);
-          labels.push(sgLabel);
-          total += parseFloat(rawHeight);
-          var $graphLabel = $("<div class='glabel'></div>");
-          //$graphLabel.html(sgLabel).attr('style','width:' + percentWidth + "%;");
-          //console.log(graphLabel);
-          $('#node-<?php print $nid; ?> .graph-labels').append($graphLabel);
           
+          values.push(rawHeight);//add the value
+          labels.push(sgLabel);//add the label
+          
+          total += parseFloat(rawHeight);//add the value to running tally of total
         }
 
-      //console.log(values);
-      //console.log(total);
-      var percentages = [];
+      //calculate the percentages that will be used to draw the actual graph
+      var percentages = []; //array to hold percent
       for (i=0; i<values.length; i++) {
-        percentages.push(values[i]/total);
+        percentages.push(values[i]/total);//iterate over values storing percent in decimal form
       }
-      // console.log(percentages);
-      var paths = [];
-      var labelObjects = [];
-      // var xStart = (canvasWidth/2);
-      // var yStart = 20;
-      var isUsed = 0;
-      var xCenter = canvasWidth/2;
+
+      var paths = []; //to hold returned path objects
+      var labelObjects = []; //to hold returned labelObjects
+      var isUsed = 0;//to keep track of how much of the pie we have used already (in decimal percent)
+      var xCenter = canvasWidth/2;//x coordinate of the center of the graph, used later
+      
+      //iterate over the percentages array
       for (i=0; i<percentages.length; i++) {
-        var largeArc = 0;
+        var largeArc = 0;//flag to tell whether calculated angle will be larger than 180
         if (percentages[i]>0.5) {
           largeArc = 1;
         } //no else
+
+        //call the drawArc function and store the returned array
         var currentArc = drawArc((canvasWidth/2),graphRadius,pieRadius,rotationDeg,percentages[i],largeArc,isUsed,1,percentThickness);
+        //retrieve the color for this object
         var currentColor = fieldCollections[i][fc_ids[i]].field_color.und[0].rgb;
-        //console.log(currentArc);
-         
+
+        //add the new arc with the desired properties, and include rollover action
         var raphaelObject = paper.path(currentArc[0]).attr({
           fill: currentColor,
           stroke: "white",
           "stroke-width": 2
         }).mouseover(function () {
                 this.stop().animate({"fill-opacity":" 1"}, 200, "<>");
-                // txt.stop().animate({opacity: 1}, ms, "elastic");
             }).mouseout(function () {
                 this.stop().animate({"fill-opacity": "0.75"}, 200, "<>");
-                // txt.stop().animate({opacity: 0}, ms);
             });
-        //calculate the percentage value 
+
+        //add the returned object to an array for manipulation and query later
+        paths.push(raphaelObject);
+        //update used percentage
+        isUsed += percentages[i];
+
+        //make the percent value  of current slice human readable
+        // with one decimal point
         var roundPercent = Math.round( percentages[i] * 1000 ) / 10;
         
+        //add the percentage to the label specified
         var currentLabel = labels[i] + "\n" + roundPercent + "%";
         
-        var labelAnchor = 'start';
+        //adjust the alignment of the text based on quadrant map
+        
+        //  ~ ————— ~
+        //  | 4 | 1 |
+        //  | ————— |
+        //  | 3 | 2 |
+        //  ~ ————— ~
 
-        //adjust the alignment of the text based on quadrant
+        var labelAnchor = 'start'; //default
         if (currentArc[6] > 2) { 
           labelAnchor = 'end';
         }
+
+        //draw the label, with desired location and anchor point
         var raphaelLabel = paper.text(currentArc[4], currentArc[5], currentLabel).attr({'text-anchor': labelAnchor,"font-size": 8});
+        
+        //add the returned object to an array for manipulation later
         labelObjects.push(raphaelLabel);
+
+        //get a bounding box for checking if the label overflows the available space
         var bbox = raphaelLabel.getBBox();
         var labelTX = bbox.x;
         var labelTY = bbox.y;
         var labelBX = bbox.x2;
         var labelBY = bbox.y2;
 
+        //check whether label needs to be moved along y or x axis
+        //we'll assume the label isn't big enough to need to be 
+        //moved in both directions along an axis
+        
+        //y axis
         if (labelTY < 0) {
           console.log("MOVE DOWN");
           var moveAmt = 0 - labelTY;
           raphaelLabel.translate(0,moveAmt);
-        }
-        if (labelBY > canvasHeight) {
+        } else if (labelBY > canvasHeight) { 
           console.log("MOVE UP");
           var moveAmt = canvasHeight - labelBY;
           raphaelLabel.translate(0, moveAmt);
         }
+
+        //x axis
         if (labelTX < 0) {
           console.log("MOVE RIGHT");
           var moveAmt = 0 - labelTX;
           raphaelLaebl.translate(moveAmt,0);
-        }
-        if (labelBX > canvasWidth) {
+        } else if (labelBX > canvasWidth) {
           console.log("MOVE LEFT");
           var moveAmt = canvasWidth - labelBX;
           raphaelLabel.translate(moveAmt,0);
         }
+
+        //DIAGNOSTIC CIRCLE
         var diagnostic = paper.circle(currentArc[4],currentArc[5],1).attr("fill","#d7d7d7","style","dominant-baseline: hanging;");
-        paths.push(raphaelObject);
-        isUsed += percentages[i];//update how much has already been consumed
+        
       }
-    // console.log(labelObjects);
-    var setOfPaths = paper.set();
     
+    //make a set to add all the arcs to
+    //well use this for collision detection if we need to
+    var setOfPaths = paper.set();
     for (i=0; i<paths.length;i++) {
       setOfPaths.push(paths[i]);
     }
     
-    var posCheck = [];
-    //check whether the labels are left or right of center
+    //see if the graph labels need balancing
+    var posCheck = []; //array to store queries of positions and keys of labels
+    
+    //some counters to tell how many labels are on each side
     var labelsLeft = 0;
     var labelsRight = 0;
+
+    //loop through the label objects
     for (i=0; i<labelObjects.length; i++ ) {
-      var thisBox = labelObjects[i].getBBox();
-      var query = [];
+      var thisBox = labelObjects[i].getBBox(); //get a bounding box
+      var query = []; //make an array to store key and x translation
+      
+      //check whether it is left or right and add the appropriate
+      //keys, position, and count information
       if (thisBox.x2 < xCenter)  {
-        console.log("left of center");
         query.push(xCenter - thisBox.x2);
         query.push(i);
         labelsLeft++;
       } else if (thisBox.x > xCenter) {
-        console.log("right of center");
         query.push(xCenter - thisBox.x);
         query.push(i);
         labelsRight++;
       }
-      // console.log(query);
-      posCheck.push(query);
+
+      posCheck.push(query); //add the query to the collection array
     }
-    // console.log(posCheck);
 
     //function to sort the labels by distance from middle of graph
     function compareLabelPos(label1,label2) {
@@ -325,45 +355,47 @@
         return 0;
       }
     }
-    posCheck.sort(compareLabelPos);
-    console.log("Labels Left: " + labelsLeft);
-    console.log("Labels Right: " + labelsRight);
-    console.log(posCheck);
+    
+
+    //check if the graph is not balanced
     if (labelsLeft > labelsRight) {
+      posCheck.sort(compareLabelPos);//sort the labels by position
+      console.log(posCheck);
       var i = labelsRight; //set starting point to array index number of right labels
-      while (labelsLeft != labelsRight) {
+      //we have to check that the number isn't equal AND that it is not off by one
+      //if we don't, we will loop until the index is undefined on an odd number of labels
+      while ((labelsLeft != labelsRight) && (labelsLeft - labelsRight != 1)) {
+        console.log(i);
         var labelNumber = posCheck[i][1]; //access the label number);
-        var toTranslate = posCheck[i][0] + labelObjects[labelNumber].getBBox().width;//how much to move the label
-        labelObjects[labelNumber].translate(toTranslate,0);
-        labelsRight++;
-        labelsLeft--;
-        i++;
+        var toTranslate = posCheck[i][0] + (labelObjects[labelNumber].getBBox().width/2);//how much to move the label
+        labelObjects[labelNumber].translate(toTranslate,0);//move it
+        labelObjects[labelNumber].attr({'text-anchor': 'start'});//adjust the anchor
+        labelsRight++;//increment count of right labels
+        labelsLeft--;//decrement count of left labels
+        i++;//increment index number
       }
     } else if (labelsRight > labelsLeft) {
-      var i = labelObjects.length - labelsLeft -1;
-      while (labelsLeft != labelsRight) {
+      posCheck.sort(compareLabelPos); //sort the labels by position
+      var i = labelObjects.length - labelsLeft -1; //start in reverse
+      //we have to check that the number isn't equal AND that it is not off by one
+      //if we don't, we will loop until the index is undefined on an odd number of labels
+      while ((labelsLeft != labelsRight) &&  (labelsRight - labelsLeft != 1)) {
+        console.log(i);
         var labelNumber = posCheck[i][1]; //access the label number);
-        // console.log(labelNumber);
-        console.log(posCheck[i][0]);
-        var toTranslate = posCheck[i][0] - labelObjects[labelNumber].getBBox().width;//how much to move the label
-        console.log(toTranslate);
-        labelObjects[labelNumber].translate(toTranslate,0);
-        labelsRight--;
-        labelsLeft++;
-        i--;
+        var toTranslate = posCheck[i][0] - (labelObjects[labelNumber].getBBox().width/2);//how much to move the label
+        labelObjects[labelNumber].translate(toTranslate,0);//move it
+        labelObjects[labelNumber].attr({'text-anchor': 'end'});//adjust the anchor
+        labelsRight--;//decrement the count of right labels
+        labelsLeft++;//increment the count of left labels
+        i--;//iterate through array, IN REVERSE
       }
     }
 
-    var groupBbox = setOfPaths.getBBox();
+    var groupBbox = setOfPaths.getBBox();//get a bounding box of all the arcs
     // console.log(groupBbox);
-      timedLoop(paths);
+    timedLoop(paths); //call the timedLoop function for fadeIn.
 
-  
-      $('#node-<?php print $nid; ?> .graph-canvas').css('height',canvasHeight + "px");
-
-
-      var loopCount=0;
-    
+    var loopCount=0;
       function timedLoop(paths) {
           setTimeout(function () {
             fadeIn(paths[loopCount],300,"0.75");
@@ -379,7 +411,6 @@
         var degrees = (value/(2*Math.PI))*360;
         return degrees;
       }
-
 
       function drawArc(centerX,centerY,radius,rotation,percent,isLarge,used,specialFlag,percentThick) {//angle passed in radians, please
        
