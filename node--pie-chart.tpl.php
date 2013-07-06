@@ -154,7 +154,6 @@
        //     $values[] = $fc_entities[$i]-> echo $ids[$i];
        //   }
        //  dpm($values);
-       dpm($node);
   ?>
   
   <script type="text/javascript">
@@ -214,7 +213,7 @@
       for (i=0; i<values.length; i++) {
         percentages.push(values[i]/total);
       }
-     // console.log(percentages);
+      // console.log(percentages);
       var paths = [];
       // var xStart = (canvasWidth/2);
       // var yStart = 20;
@@ -242,7 +241,7 @@
         var roundPercent = Math.round( percentages[i] * 1000 ) / 10;
         var currentLabel = labels[i] + "\n" + roundPercent + "%";
         var labelAnchor = 'start';
-        console.log(currentArc[6]);
+        //console.log(currentArc[6]);
         if (currentArc[6] > 2) {
           labelAnchor = 'end';
         }
@@ -273,15 +272,9 @@
           var moveAmt = canvasWidth - labelBX;
           raphaelLabel.translate(moveAmt,0);
         }
-        // console.log(bbox);
-        // console.log(bbox.height);
         var diagnostic = paper.circle(currentArc[4],currentArc[5],2).attr("fill","#d7d7d7","style","dominant-baseline: hanging;");
         paths.push(raphaelObject);
         isUsed += percentages[i];//update how much has already been consumed
-       // console.log(currentArc[1]);
-       // console.log(currentArc[2]);
-        // xStart = currentArc[1];
-        // yStart = currentArc[2];
       }
      
       timedLoop(paths);
@@ -301,38 +294,61 @@
             }
           }, 300);
       }
+
+      //function to convert radians to degrees, mostly for diagnostic purposes
+      function toDegrees(value) {
+        var degrees = (value/(2*Math.PI))*360;
+        return degrees;
+      }
+
+
       function drawArc(centerX,centerY,radius,rotation,percent,isLarge,used,specialFlag,percentThick) {//angle passed in radians, please
        
         //STRINGS FOR TOTAL ARC AND ARC TO ANIMATE FROM
         var arcString = "";
         var arcStart = "";
         var labelLine = "";
-        var adjustment = -(.5*Math.PI); //this will be used in the negative direction
-        adjustment += (rotation/360) * 2 * Math.PI;
+        var totalAdj = -(.5*Math.PI); //this will be used in the negative direction
+        var rotationRad = (rotation/360) * 2 * Math.PI;
+        var adjustment = totalAdj; // subtract 1/2 PI to get 12 o clock position
+        totalAdj += rotationRad;//set total adjustment based on rotation parameter
+        // console.log(adjustment);
         //SOME ANGLE CALCULATIONS
-        var angle = (2 * Math.PI * (percent + used)) + adjustment //end location
-        var halfAngle = (2 * Math.PI * ((percent/2) + used)) + adjustment; //middle location, for label
-        var startAngle = (2 * Math.PI * used) + adjustment; //start location
-        var startX = centerX + radius * Math.cos(angle);
-        var startY = centerY + radius * Math.sin(angle);
+        var angle = (2 * Math.PI * (percent + used)) + totalAdj //end location
+        var halfAngle = (2 * Math.PI * ((percent/2) + used)) + totalAdj; //middle location, for label
+        var startAngle = (2 * Math.PI * used) + totalAdj; //start location
+
+        var startX = centerX + radius * Math.cos(startAngle);
+        var startY = centerY + radius * Math.sin(startAngle);
         
-        var rad36 = (2*Math.PI)+ adjustment;
-        var rad27 = (1.5*Math.PI)+ adjustment;
+        //standard values to compare against
+        var rad36 = (2*Math.PI) + adjustment;
+        var rad27 = (1.5*Math.PI) + adjustment;
         var rad18 = Math.PI + adjustment;
         var rad9 = (.5*Math.PI) + adjustment;
         var rad0 = 0 + adjustment;
+
+
         //ADJUSTMENTS FOR LABEL
+
+        if (halfAngle > 2*Math.PI) {
+          halfAngle = halfAngle - (2 * Math.PI);
+        }
+        console.log(toDegrees(halfAngle));
+        // console.log(halfAngleDeg);
         var quadrant = 1; //determine quadrant based on angle
         //if the label is on the left side of the graph, align with end of text
-        if (rad27 < halfAngle) {
+        if (rad27 < halfAngle && halfAngle < rad36) {
           quadrant = 4;
         } else if ( (rad18 < halfAngle) && (halfAngle < rad27) ) {
           quadrant = 3;
         } else if ( (rad9 < halfAngle) && (halfAngle < rad18) ) {
           quadrant = 2;
-        } //no regular else
+        } else {
+          console.log("DEFAULT CASE");
+        }
 
-
+        console.log(quadrant);
         //adjust the "middle" location depending on total length and calculated location for label
         if (((1.3*Math.PI) < angle) && (angle < (1.5*Math.PI))) {
           halfAngle = halfAngle - (0.5 * Math.PI * percent); 
