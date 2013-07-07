@@ -184,7 +184,6 @@
       <?php $nid = $node->nid; ?>
       $('#node-<?php print $nid; ?> .graph').append('<div class="graph-spot"></div>').append('<div class="graph-canvas"></div>').append('<div class="graph-labels"></div>').append('<div class="x-axis-label"></div>');
       var canvasHeight = $('#node-<?php print $nid; ?> .graph-spot').height();
-      console.log(canvasHeight);
       $gTitle.insertBefore($('#node-<?php print $nid; ?> .graph'));
       
       for (i=0; i<fieldCollections.length; i++) {
