@@ -140,7 +140,7 @@
       //  -make a function to draw a line from closest edge 
       //   of circle to intersection of label 
       //  -make a function to check for collisions with other
-      //   labels and the pie edge
+      //   labels
 
 
     //retreive field collection ids and extract for retreival
@@ -239,7 +239,7 @@
       var raphaelObject = paper.path(currentArc[0]).attr({
         fill: currentColor,
         stroke: "white",
-        "stroke-width": 2
+        "stroke-width": 4
       }).mouseover(function () {
               this.stop().animate({"fill-opacity":" 1"}, 200, "<>");
           }).mouseout(function () {
@@ -325,10 +325,10 @@
   //check if the graph is not balanced
   if (labelsLeft > labelsRight) {
     posCheck.sort(compareLabelPos);//sort the labels by position
-    console.log("Sorted by initial position");
-    console.log(posCheck);
-    console.log("Sorted by order, clockwise from top");
-    console.log(labelObjects);
+    // console.log("Sorted by initial position");
+    // console.log(posCheck);
+    // console.log("Sorted by order, clockwise from top");
+    // console.log(labelObjects);
     var i = labelsRight; //set starting point to array index number of right labels
     //we have to check that the number isn't equal AND that it is not off by one
     //if we don't, we will loop until the index is undefined on an odd number of labels
@@ -379,8 +379,10 @@
     // var labelQuadrant = getQuadrant(labelObjects[i].attrs.x,labelObjects[i].attrs.y);
     var labelNumber = posCheck[i][1];
     console.log("Processing label number " + (labelNumber + 1));
-    adjustGraphCollision(labelObjects[labelNumber],posCheck[i][2],xCenter,yCenter,pieRadius);
-    adjustEdgeCollision(labelObjects[labelNumber]);
+    var thisLabel = labelObjects[labelNumber];
+    adjustGraphCollision(thisLabel,posCheck[i][2],xCenter,yCenter,pieRadius);
+    adjustEdgeCollision(thisLabel);
+    changeAnchor(thisLabel);
   }
   var groupBbox = setOfPaths.getBBox();//get a bounding box of all the arcs
 
@@ -482,7 +484,6 @@
     }
 
     function adjustGraphCollision(labelObject,quadrant,centerX,centerY,pieRadius) {
-      
       currentBbox = labelObject.getBBox();
       var xAnchor = -1;
       var yAnchor = -1;
@@ -665,11 +666,23 @@
 
       return results; //returns an array with the arcString and the end coordinates
     }
-
     function fadeIn(toAnimate,duration,opacity) {
         toAnimate.animate({"fill-opacity":opacity,"stroke-opacity":"1"},duration, "<>");
     }
-
+    
+    function changeAnchor(labelObject) {
+      var currentAnchor = labelObject.attrs['text-anchor'];
+      var thisBBox = labelObject.getBBox(); 
+      console.log(labelObject);
+        if (currentAnchor == "start") {
+          labelObject.attr({'text-anchor':'end'});
+          absTranslate(labelObject,thisBBox.width,0);
+        } else {
+          labelObject.attr({'text-anchor':'start'});
+          absTranslate(labelObject,-thisBBox.width,0);
+        }
+      console.log(currentAnchor);
+    }
   });
 
 </script>
