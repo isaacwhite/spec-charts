@@ -173,7 +173,7 @@
     var fc_ids = <?php print drupal_json_encode($ids); ?>;
     var percentThickness = <?php print drupal_json_encode($node->{'field_thickness_percent_'}['und'][0]['value']); ?>;
     var rotationDeg = <?php print drupal_json_encode($node->{'field_graph_rotation'}['und'][0]['value']); ?>;
-      
+    var labelList = [];
     //set the value of the graph title object
     var $gTitle = $("<h3 class='gtitle'></h3>").html(GraphTitle);
     //insert the area to render the graph in
@@ -276,7 +276,8 @@
 
       //draw the label, with desired location and anchor point
       var raphaelLabel = paper.text(currentArc[4], currentArc[5], currentLabel).attr({'text-anchor': labelAnchor,"font-size": 8});
-      
+
+      labelList.push(new label(raphaelLabel,raphaelLabel.getBBox()));
       //add the returned object to an array for manipulation later
       labelObjects.push(raphaelLabel);
 
@@ -334,7 +335,7 @@
       //move labels right
       var labelNumber = posCheck[i][1]; //access the label number);
       var toTransform = posCheck[i][0] + (labelObjects[labelNumber].getBBox().width/2);//how much to move the label
-      console.log(labelObjects[labelNumber]);
+      // console.log(labelObjects[labelNumber]);
       absTranslate(labelObjects[labelNumber],toTransform,0);
       labelObjects[labelNumber].attr({'text-anchor': 'start'});//adjust the anchor
       var newBBox = labelObjects[labelNumber].getBBox();
@@ -366,7 +367,7 @@
 
   for (i=0; i<labelObjects.length; i++) {
     var labelNumber = posCheck[i][1];
-    console.log("Processing label number " + (labelNumber + 1));
+    // console.log("Processing label number " + (labelNumber + 1));
     var thisLabel = labelObjects[labelNumber];
     adjustGraphCollision(thisLabel,posCheck[i][2],xCenter,yCenter,pieRadius);
     adjustEdgeCollision(thisLabel);
@@ -377,16 +378,57 @@
   //if all the above succeeded, set the height of the container just before animating the paths
   $('#node-<?php print $nid; ?> .graph-canvas').css('height',canvasHeight + "px");
    
+  console.log(labelList);
   timedLoop(paths); //call the timedLoop function for fadeIn.
 
+    // a label object
     function label(labelObject,bBox) {
       //object to hold label and associated bbox
+      this.rObject = labelObject;
+      this.bbox = bBox;
+      this.quadrant = getQuadrant(this.rObject.attrs.x,this.rObject.attrs.y);
+      
+      if (this.quadrant > 2) { //check if it is right or left
+        this.fromCenter = xCenter - this.bbox.x2;
+      } else {
+        this.fromCenter = xCenter - this.bbox.x;
+      }
+      
+      console.log("I'm a label!");
     }
-    function labelList() {
-      //list of labels
-    }
-    function pie(valuesArray,radius,centerPosArray) {
 
+    //array of values for pie chart [value,label,color]
+    //radius of pie chart
+    //array [x,y] of center position
+    //array of label strings
+    //raphael object on which to draw the pie
+    //special array [specialFlag,rotation,percentThick]
+    function pie(valuesArray,radius,centerPosArray,raphaelCanvas,specialArray) {
+      this.values = valuesArray[0];
+      this.labels = valuesArray[1];
+      this.colors = valuesArray[2];
+      this.total= 0;
+      //calculate total
+      for (i=0; i<this.values.length; i++) { this.total += this.values[i]; } //calculate a total
+      this.percentages = []; //array to hold percent
+      for (i=0; i<this.values.length; i++) { percentages.push(this.values[i]/total); } //calculate a percent
+      this.sliceObjects = []; //array of slice objects created in the pie
+
+      //keep track of used percentage
+      var isUsed = 0;
+      for (i=0; i<this.percentages.length; i++) { 
+         var currentArc = drawArc(centerPosArray[0],centerPosArray[1],radius,specialArray[1],this.percentages[i],isUsed,specialArray[0],specialArray[2]);
+      
+
+      }
+      
+      var currentArc = drawArc(centerPosArray[0],graphRadius,radius,rotationDeg,percentages[i],largeArc,isUsed,1,percentThickness);
+      //retrieve the color for this object
+      
+      // this.labels = [];
+      // for (i=0; i<labelsArray.length; i++) { 
+
+      }
     }
     function absTranslate(raphaelObject,xTrans,yTrans) {
       var currentX = raphaelObject.attrs.x;
@@ -456,13 +498,13 @@
       
       //y axis
       if (labelTY < 0) {
-        console.log("MOVE DOWN");
+        // console.log("MOVE DOWN");
         var moveAmt = 0 - labelTY;
 
         absTranslate(thisLabel,0,moveAmt);
         // thisLabel.transform("t0," + moveAmt);
       } else if (labelBY > canvasHeight) { 
-        console.log("MOVE UP");
+        // console.log("MOVE UP");
         var moveAmt = canvasHeight - labelBY;
 
         absTranslate(thisLabel,0,moveAmt);
@@ -471,13 +513,13 @@
 
       //x axis
       if (labelTX < 0) {
-        console.log("MOVE RIGHT");
+        // console.log("MOVE RIGHT");
         var moveAmt = 0 - labelTX;
 
         absTranslate(thisLabel,moveAmt,0);
         // thisLabel.transform("t" + moveAmt + ",0");
       } else if (labelBX > canvasWidth) {
-        console.log("MOVE LEFT");
+        // console.log("MOVE LEFT");
         var moveAmt = canvasWidth - labelBX;
 
         absTranslate(thisLabel,moveAmt,0);
@@ -506,8 +548,8 @@
       var collisionObj = paper.circle(centerX,centerY,pieRadius).attr({'opacity': 0});
      
       if (collisionObj.isPointInside(xAnchor,yAnchor)) {
-        console.log("collision detected, index " + i);
-        console.log("quadrant: " + quadrant);
+        // console.log("collision detected, index " + i);
+        // console.log("quadrant: " + quadrant);
         var angleDeg = Raphael.angle(xAnchor,yAnchor,centerX,centerY);
         var angleRad = Raphael.rad(angleDeg);
         var newPosition = getPointOnCircle(angleRad,pieRadius+10,centerX,centerY);
@@ -642,7 +684,7 @@
     function changeAnchor(labelObject) {
       var currentAnchor = labelObject.attrs['text-anchor'];
       var thisBBox = labelObject.getBBox(); 
-      console.log(labelObject);
+      // console.log(labelObject);
         if (currentAnchor == "start") {
           labelObject.attr({'text-anchor':'end'});
           absTranslate(labelObject,thisBBox.width,0);
