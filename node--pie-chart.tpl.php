@@ -137,13 +137,16 @@
     font-weight: bold;
   }
 </style>
-<?php  /*RETRIEVE THE FIELD COLLECTIONS*/
+
+<?php  
+
+  /*RETRIEVE THE FIELD COLLECTIONS*/
       
-      //TODO
-      //  -make a function to draw a line from closest edge 
-      //   of circle to intersection of label 
-      //  -make a function to check for collisions with other
-      //   labels
+    //TODO
+    //  -make a function to draw a line from closest edge 
+    //   of circle to intersection of label 
+    //  -make a function to check for collisions with other
+    //   labels
 
 
     //retreive field collection ids and extract for retreival
@@ -164,7 +167,360 @@
 ?>
   
 <script type="text/javascript">
-//we don't want any global variables in case there are multiple graphs, or else all the graph values will be the same.
+
+//model of a pie object
+
+var SPEC_CHARTS = {};
+
+var Pie = function(valuesArray,radius,centerPosArray,raphaelCanvas,specialArray) {
+      
+      //INTERNAL VALUES FOR PIE
+      this.values = valuesArray[0]; //a list of values
+      this.labelText = valuesArray[1]; //a list of label text
+      this.colors = valuesArray[2]; //a list of colors
+      this.xCenter = centerPosArray[0]; //the x center
+      this.yCenter = centerPosArray[1]; //the y center
+      this.radius = parseFloat(radius); //the radius
+      this.isDonut = specialArray[0]; //if it's a donut
+      this.rotation = parseInt(specialArray[1]); //it's set rotation away from 12 o'clock
+      this.canvas = raphaelCanvas;//the canvas it will live on
+      this.total = 0; //this will hold the total of the values
+      this.sliceObjects = []; //array of slice objects created in the pie
+      this.slicePaths = []; //the slicePaths string. Referenced when the pie draws itself
+      this.labelObjects = []; //the array of label objects defined in class. NOT RAPHAEL OBJECTS YET
+      this.percentages = []; //array to hold percentage values from supplied numbers
+      
+      if (this.isDonut == 1) {
+        this.thickness = parseFloat(specialArray[2]); //the thickness of the donut
+        this.bigText = specialArray[3]; //the big text for inside
+        this.littleText = specialArray[4]; //the little text for inside
+      }
+      for (i=0; i<this.values.length; i++) { this.total += parseFloat(this.values[i]); } //calculate a total
+      for (i=0; i<this.values.length; i++) { this.percentages.push(this.values[i]/this.total); } //calculate a percent
+      
+      //keep track of used percentage
+      var isUsed = 0; //temporary to feed back in to path generating function
+       
+      for (i=0; i<this.percentages.length; i++) { 
+        //FUNCTION SIGNATURE   (centerX,centerY,radius,rotation,percent,isLarge,used,specialFlag,percentThick)
+        var currentArc = SPEC_CHARTS.drawArc(this.xCenter,this.yCenter,this.radius,this.rotation,this.percentages[i],isUsed,this.isDonut,this.thickness);
+        var labelCount = i + 1;
+        var startAngle = currentArc[1];
+        var endAngle = currentArc[2];
+        this.slicePaths.push(currentArc[0]);//arc string
+        //pass the label values for the arc directly into the new label
+        this.labelObjects.push(new label(this.labelText[i],labelCount,startAngle,endAngle));
+        isUsed += percentages[i];
+      }
+
+      //METHODS
+
+} 
+
+//function for pie to draw the slices
+Pie.prototype.draw = function() { //draw the slices
+    for (var i in this.slicePaths) {
+      var thisObject = this.canvas.path(this.slicePaths[i]).attr({
+        fill: this.colors[i],
+        stroke: "white",
+        "stroke-width": 4
+      }).mouseover(function () {
+              this.stop().animate({"fill-opacity":" 1"}, 200, "<>");
+          }).mouseout(function () {
+              this.stop().animate({"fill-opacity": "0.75"}, 200, "<>");
+          });
+
+      this.sliceObjects.push(thisObject);
+    }
+    timedLoop(this.sliceObjects);
+};
+
+SPEC_CHARTS.drawArc = function(centerX,centerY,radius,rotation,percent,used,specialFlag,percentThick) {//angle passed in radians, please
+ 
+  //STRINGS FOR TOTAL ARC AND ARC TO ANIMATE FROM
+  // console.log(centerX);
+  // console.log(centerY);
+  // console.log(radius);
+  // console.log(rotation);
+  // console.log(percent);
+  // console.log(used);
+  // console.log(specialFlag);
+  // console.log(percentThick);
+  isLarge = 0;
+  if (percent>.5) {
+    isLarge = 1;
+  } 
+  var arcString = "";
+  var arcStart = "";
+  var labelLine = "";
+  var totalAdj = -(.5*Math.PI); //this will be used in the negative direction
+  var rotationRad = (rotation/360) * 2 * Math.PI;
+  var adjustment = totalAdj; // subtract 1/2 PI to get 12 o clock position
+  totalAdj += rotationRad;//set total adjustment based on rotation parameter
+
+  //SOME ANGLE CALCULATIONS
+  var angle = (2 * Math.PI * (percent + used)) + totalAdj //end location
+  var halfAngle = (2 * Math.PI * ((percent/2) + used)) + totalAdj; //middle location, for label
+  var startAngle = (2 * Math.PI * used) + totalAdj; //start location
+
+  var startX = centerX + radius * Math.cos(startAngle);//calculate outside start
+  var startY = centerY + radius * Math.sin(startAngle);
+  
+  //standard values to compare against
+  var rad36 = (2*Math.PI) + adjustment; //270
+  var rad27 = (1.5*Math.PI) + adjustment; //180
+  var rad18 = Math.PI + adjustment; //90
+  var rad9 = (.5*Math.PI) + adjustment; //0
+  var rad0 = 0 + adjustment; //-90
+
+
+  //ADJUSTMENTS FOR LABEL
+  //correct values larger than 2 PI
+  if (halfAngle > 1.5*Math.PI) { //adjust this an extra quarter to account for svg graph space
+    halfAngle = halfAngle - (2 * Math.PI);
+  } 
+
+  //Math.PI/6 == 30
+  //Math.PI/3 == 60
+
+  //check cases for moving labels away from bottom of graph
+  if ( ( rad0 < halfAngle && halfAngle < -Math.PI/6 ) || (rad18 < halfAngle && halfAngle < (rad27 - Math.PI/3)) ) { //this will cause error because rad9 is equal to zero
+    halfAngle = halfAngle + (percent * Math.PI * 0.5);//add a quarter percent to the location
+  } else if (( (rad27 + Math.PI/3) < halfAngle && halfAngle < rad36) || ((rad9 + Math.PI/3)< halfAngle && halfAngle < rad18) ) {
+    halfAngle = halfAngle - (percent * Math.PI * 0.5);
+  }
+  
+  //calculate endpoint :)
+  var endX = centerX + radius * Math.cos(angle);//calculating endX by angle so far alone
+  var endY = centerY + radius * Math.sin(angle);//same problem as
+  
+  //caculate the label location, with some distance from the graph
+  var labelX = centerX + (radius+1) * Math.cos(halfAngle);
+  var labelY = centerY + (radius+1) * Math.sin(halfAngle);
+  
+  var quadrant = SPEC_CHARTS.getQuadrant(labelX,labelY);
+  var thickness = ((percentThick/100) * pieRadius);
+  var results = new Array();
+
+  //MAKE THE STRING, WITH SWITCH FOR EMPTY MIDDLE
+  if (specialFlag != 0) { //pie with hole in the middle
+    var smallRadius = radius-thickness;
+    var smallStartX = centerX + smallRadius * Math.cos(startAngle);
+    var smallStartY = centerY + smallRadius * Math.sin(startAngle);
+    var smallEndX = centerX + smallRadius * Math.cos(angle);
+    var smallEndY = centerY + smallRadius * Math.sin(angle);
+
+    arcString = "M" + smallStartX + "," + smallStartY;
+    arcString += " ";
+
+    arcString += "L" + startX + "," + startY;
+    arcString += " ";
+
+    arcStart = arcString; //these are about to diverge
+    arcStart += "L" + smallStartX + "," + smallStartY + "z";
+
+    arcString += "A" + radius + "," + radius;
+    arcString += ",0," + isLarge + ",1 ";
+    arcString += endX + "," + endY;
+
+    arcString += "L" + smallEndX + "," + smallEndY;
+    arcString += " ";
+
+    arcString += "A" + smallRadius + "," + smallRadius;
+    arcString += ",0," + isLarge + ",0 ";
+
+    arcString += smallStartX + "," + smallStartY;
+    arcString += ",z";
+  } else {
+    //normal code
+  arcString = "M" + centerX + "," + centerY;
+  arcString += " ";//add a space
+    
+  arcString += "L" + startX + "," + startY; //initial line
+  arcString += " ";//add a space
+
+  arcString += "A" + radius + "," + radius;//we only draw circular arcs, here.
+  arcString += ",20," + isLarge + ",1 ";//some required flags and spaces
+
+  arcString += endX + "," + endY;//add the end points
+  arcString += ",z";//close the path
+  }
+
+  results[0] = arcString;
+  results[1] = startAngle;
+  results[2] = angle;
+  results[3] = arcStart;
+  results[4] = labelX;
+  results[5] = labelY;
+  results[6] = quadrant;
+
+  return results; //returns an array with the arcString and the end coordinates
+};
+
+SPEC_CHARTS.absTranslate = function(raphaelObject,xTrans,yTrans){
+  var currentX = raphaelObject.attrs.x;
+  var currentY = raphaelObject.attrs.y;
+  raphaelObject.attr({'x': currentX+xTrans, 'y' : currentY+yTrans});
+};
+    
+//function to iterate over all paths and fade them in one at a time
+var loopCount=0;
+
+SPEC_CHARTS.timedLoop = function(paths) {
+    setTimeout(function () {
+      fadeIn(paths[loopCount],300,"0.75");
+      loopCount++;
+      if (loopCount<paths.length) {
+        timedLoop(paths);     
+      }
+    }, 300);
+};
+
+//function to sort the labels by distance from middle of graph
+SPEC_CHARTS.compareLabelPos = function(label1,label2) {
+  if (label1[0] < label2[0]) {
+    return -1;
+  } else if (label1[0] > label2[0]) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
+SPEC_CHARTS.getQuadrant = function(xPos,yPos,thisPie) {
+  
+  //QUADRANT MAP
+  
+  //  ~ ————— ~
+  //  | 4 | 1 |
+  //  | ————— |
+  //  | 3 | 2 |
+  //  ~ ————— ~
+
+  var labelQuadrant = -1; //default case to indicate error
+  if (xPos < thisPie.xCenter)  {
+    //label is left of center
+    if (yPos < thisPie.yCenter) {
+      labelQuadrant = 4;
+    } else {
+      labelQuadrant = 3;
+    }
+  } else {
+    //label is right of center
+    if (yPos < thisPie.yCenter) {
+      labelQuadrant = 1;
+    } else {
+      labelQuadrant = 2;
+    }
+  }
+  return labelQuadrant;
+}
+
+
+SPEC_CHARTS.adjustEdgeCollision = function(thisLabel) {
+  //get a bounding box for checking if the label overflows the available space
+  var bbox = thisLabel.getBBox();
+  var labelTX = bbox.x;
+  var labelTY = bbox.y;
+  var labelBX = bbox.x2;
+  var labelBY = bbox.y2;
+
+  //check whether label needs to be moved along y or x axis
+  //we'll assume the label isn't big enough to need to be 
+  //moved in both directions along an axis
+  
+  //y axis
+  if (labelTY < 0) {
+    // console.log("MOVE DOWN");
+    var moveAmt = 0 - labelTY;
+
+    absTranslate(thisLabel,0,moveAmt);
+    // thisLabel.transform("t0," + moveAmt);
+  } else if (labelBY > canvasHeight) { 
+    // console.log("MOVE UP");
+    var moveAmt = canvasHeight - labelBY;
+
+    absTranslate(thisLabel,0,moveAmt);
+    //thisLabel.transform("t0," + moveAmt);
+  }
+
+  //x axis
+  if (labelTX < 0) {
+    // console.log("MOVE RIGHT");
+    var moveAmt = 0 - labelTX;
+
+    absTranslate(thisLabel,moveAmt,0);
+    // thisLabel.transform("t" + moveAmt + ",0");
+  } else if (labelBX > canvasWidth) {
+    // console.log("MOVE LEFT");
+    var moveAmt = canvasWidth - labelBX;
+
+    absTranslate(thisLabel,moveAmt,0);
+    // thisLabel.transform("t" + moveAmt + ",0");
+  }
+}
+    
+SPEC_CHARTS.adjustGraphCollision = function(labelObject,quadrant,centerX,centerY,pieRadius) {
+  currentBbox = labelObject.getBBox();
+  var xAnchor = -1;
+  var yAnchor = -1;
+  if (quadrant == 1) {
+    xAnchor = currentBbox.x;
+    yAnchor = currentBbox.y2;
+  } else if (quadrant == 2) { 
+    xAnchor =  currentBbox.x;
+    yAnchor = currentBbox.y;
+  } else if (quadrant == 3) {
+    xAnchor = currentBbox.x2;
+    yAnchor = currentBbox.y;
+  } else { //should be in fourth quadrant, we hope
+    xAnchor = currentBbox.x2;
+    yAnchor = currentBbox.y2;
+  }
+
+  //draw a circle to represent the pie area
+  var collisionObj = paper.circle(centerX,centerY,pieRadius).attr({'opacity': 0});
+ 
+  if (collisionObj.isPointInside(xAnchor,yAnchor)) {
+    // console.log("collision detected, index " + i);
+    // console.log("quadrant: " + quadrant);
+    var angleDeg = Raphael.angle(xAnchor,yAnchor,centerX,centerY);
+    var angleRad = Raphael.rad(angleDeg);
+    var newPosition = getPointOnCircle(angleRad,pieRadius+10,centerX,centerY);
+    var toTransformX = newPosition[0] - xAnchor;
+    var toTransformY = newPosition[1] - yAnchor;
+
+
+    absTranslate(labelObject,toTransformX,toTransformY);
+  } //don't do anything else
+  
+  collisionObj.remove(); //remove the object
+}
+
+SPEC_CHARTS.getPointOnCircle = function(angle,radius,centerX,centerY) {
+  var xCoord = centerX + radius * Math.cos(angle);
+  var yCoord = centerY + radius * Math.sin(angle);
+  results = [xCoord,yCoord];
+
+  return results;
+}
+    
+SPEC_CHARTS.fadeIn = function(toAnimate,duration,opacity) {
+    toAnimate.animate({"fill-opacity":opacity,"stroke-opacity":"1"},duration, "<>");
+}
+ 
+SPEC_CHARTS.changeAnchor = function(labelObject) {
+  var currentAnchor = labelObject.attrs['text-anchor'];
+  var thisBBox = labelObject.getBBox(); 
+  // console.log(labelObject);
+    if (currentAnchor == "start") {
+      labelObject.attr({'text-anchor':'end'});
+      absTranslate(labelObject,thisBBox.width,0);
+    } else {
+      labelObject.attr({'text-anchor':'start'});
+      absTranslate(labelObject,-thisBBox.width,0);
+    }
+}
 
   $(document).ready(function(){
     //GET VARIABLES FROM PHP
@@ -212,9 +568,9 @@
         values.push(rawHeight);//add the value
         labels.push(sgLabel);//add the label
         
-        total += parseFloat(rawHeight);//add the value to running tally of total
+        total += parseFloat(rawHeight);//.toFixed(2);//add the value to running tally of total
       }
-
+      console.log(total);
     //calculate the percentages that will be used to draw the actual graph
     var percentages = []; //array to hold percent
     for (i=0; i<values.length; i++) {
@@ -234,32 +590,32 @@
       } //no else
 
       //call the drawArc function and store the returned array
-      var currentArc = drawArc((canvasWidth/2),graphRadius,pieRadius,rotationDeg,percentages[i],largeArc,isUsed,1,percentThickness);
+      var currentArc = SPEC_CHARTS.drawArc((canvasWidth/2),graphRadius,pieRadius,rotationDeg,percentages[i],isUsed,1,percentThickness);
       //retrieve the color for this object
       var currentColor = fieldCollections[i][fc_ids[i]].field_color.und[0].rgb;
 
       //add the new arc with the desired properties, and include rollover action
-      var raphaelObject = paper.path(currentArc[0]).attr({
-        fill: currentColor,
-        stroke: "white",
-        "stroke-width": 4
-      }).mouseover(function () {
-              this.stop().animate({"fill-opacity":" 1"}, 200, "<>");
-          }).mouseout(function () {
-              this.stop().animate({"fill-opacity": "0.75"}, 200, "<>");
-          });
+      // var raphaelObject = paper.path(currentArc[0]).attr({
+      //   fill: currentColor,
+      //   stroke: "white",
+      //   "stroke-width": 4
+      // }).mouseover(function () {
+      //         this.stop().animate({"fill-opacity":" 1"}, 200, "<>");
+      //     }).mouseout(function () {
+      //         this.stop().animate({"fill-opacity": "0.75"}, 200, "<>");
+      //     });
 
-      //add the returned object to an array for manipulation and query later
-      paths.push(raphaelObject);
-      //update used percentage
-      isUsed += percentages[i];
+      // //add the returned object to an array for manipulation and query later
+      // paths.push(raphaelObject);
+      // //update used percentage
+      // isUsed += percentages[i];
 
-      //make the percent value  of current slice human readable
-      // with one decimal point
-      var roundPercent = Math.round( percentages[i] * 1000 ) / 10;
+      // //make the percent value  of current slice human readable
+      // // with one decimal point
+      // var roundPercent = Math.round( percentages[i] * 1000 ) / 10;
       
-      //add the percentage to the label specified
-      var currentLabel = labels[i] + "\n" + roundPercent + "%";
+      // //add the percentage to the label specified
+      // var currentLabel = labels[i] + "\n" + roundPercent + "%";
       
       //adjust the alignment of the text based on quadrant map
       
@@ -269,132 +625,176 @@
       //  | 3 | 2 |
       //  ~ ————— ~
 
-      var labelAnchor = 'start'; //default
-      if (currentArc[6] > 2) { 
-        labelAnchor = 'end';
-      }
+  //     var labelAnchor = 'start'; //default
+  //     if (currentArc[6] > 2) { 
+  //       labelAnchor = 'end';
+  //     }
 
-      //draw the label, with desired location and anchor point
-      var raphaelLabel = paper.text(currentArc[4], currentArc[5], currentLabel).attr({'text-anchor': labelAnchor,"font-size": 8});
+  //     //draw the label, with desired location and anchor point
+  //     var raphaelLabel = paper.text(currentArc[4], currentArc[5], currentLabel).attr({'text-anchor': labelAnchor,"font-size": 8});
 
-      labelList.push(new label(raphaelLabel,raphaelLabel.getBBox()));
-      //add the returned object to an array for manipulation later
-      labelObjects.push(raphaelLabel);
+  //     labelList.push(new label(raphaelLabel,raphaelLabel.getBBox()));
+  //     //add the returned object to an array for manipulation later
+  //     labelObjects.push(raphaelLabel);
 
       
 
 
-      //DIAGNOSTIC CIRCLE
-      var diagnostic = paper.circle(currentArc[4],currentArc[5],1).attr("fill","#d7d7d7","style","dominant-baseline: hanging;");
+  //     //DIAGNOSTIC CIRCLE
+  //     var diagnostic = paper.circle(currentArc[4],currentArc[5],1).attr("fill","#d7d7d7","style","dominant-baseline: hanging;");
       
-    }
+  //   }
 
-  //make a set to add all the arcs to
-  //well use this for collision detection if we need to
-  var setOfPaths = paper.set();
-  for (i=0; i<paths.length;i++) {
-    setOfPaths.push(paths[i]);
-  }
+  // //make a set to add all the arcs to
+  // //well use this for collision detection if we need to
+  // var setOfPaths = paper.set();
+  // for (i=0; i<paths.length;i++) {
+  //   setOfPaths.push(paths[i]);
+  // }
 
-  //see if the graph labels need balancing
-  var posCheck = []; //array to store queries of positions and keys of labels
+  // //see if the graph labels need balancing
+  // var posCheck = []; //array to store queries of positions and keys of labels
 
-  //some counters to tell how many labels are on each side
-  var labelsLeft = 0;
-  var labelsRight = 0;
+  // //some counters to tell how many labels are on each side
+  // var labelsLeft = 0;
+  // var labelsRight = 0;
 
   //loop through the label objects
-  for (i=0; i<labelObjects.length; i++ ) {
-    var thisBox = labelObjects[i].getBBox(); //get a bounding box
-    var labelQuadrant = -1;//default to indicate error
-    var query = []; //make an array to store key and x translation
+  // for (i=0; i<labelObjects.length; i++ ) {
+  //   var thisBox = labelObjects[i].getBBox(); //get a bounding box
+  //   var labelQuadrant = -1;//default to indicate error
+  //   var query = []; //make an array to store key and x translation
     
-      //check whether it is left or right and add the appropriate
-      //keys, position, and count information
-      labelQuadrant = getQuadrant(thisBox.x,thisBox.y);
-      if (labelQuadrant > 2) { //check if it is right or left
-        labelsLeft++;
-        query.push(xCenter - thisBox.x2);
-      } else {
-        labelsRight++;
-        query.push(xCenter - thisBox.x);
-      }
-      query.push(i);
-      query.push(labelQuadrant);
-      query.push(thisBox);//store the bounding box too.
-      posCheck.push(query); //add the query to the collection array
-  }
+  //     //check whether it is left or right and add the appropriate
+  //     //keys, position, and count information
+  //     labelQuadrant = getQuadrant(thisBox.x,thisBox.y);
+  //     if (labelQuadrant > 2) { //check if it is right or left
+  //       labelsLeft++;
+  //       query.push(xCenter - thisBox.x2);
+  //     } else {
+  //       labelsRight++;
+  //       query.push(xCenter - thisBox.x);
+  //     }
+  //     query.push(i);
+  //     query.push(labelQuadrant);
+  //     query.push(thisBox);//store the bounding box too.
+  //     posCheck.push(query); //add the query to the collection array
+  // }
 
   //check if the graph is not balanced
-  if (labelsLeft > labelsRight) {
-    posCheck.sort(compareLabelPos);//sort the labels by position
-    var i = labelsRight; //set starting point to array index number of right labels
-    //we have to check that the number isn't equal AND that it is not off by one
-    //if we don't, we will loop until the index is undefined on an odd number of labels
-    while ((labelsLeft != labelsRight) && (labelsLeft - labelsRight != 1)) {
-      //move labels right
-      var labelNumber = posCheck[i][1]; //access the label number);
-      var toTransform = posCheck[i][0] + (labelObjects[labelNumber].getBBox().width/2);//how much to move the label
-      // console.log(labelObjects[labelNumber]);
-      absTranslate(labelObjects[labelNumber],toTransform,0);
-      labelObjects[labelNumber].attr({'text-anchor': 'start'});//adjust the anchor
-      var newBBox = labelObjects[labelNumber].getBBox();
-      posCheck[i][2] = getQuadrant(newBBox.x,newBBox.y);
-      posCheck[i][3] = newBBox;
-      labelsRight++;//increment count of right labels
-      labelsLeft--;//decrement count of left labels
-      i++;//increment index number
-    }
-  } else if (labelsRight > labelsLeft) {
-    //move labels left
-    posCheck.sort(compareLabelPos); //sort the labels by position
-    var i = labelObjects.length - labelsLeft -1; //start in reverse
-    //we have to check that the number isn't equal AND that it is not off by one
-    //if we don't, we will loop until the index is undefined on an odd number of labels
-    while ((labelsLeft != labelsRight) &&  (labelsRight - labelsLeft != 1)) {
-      var labelNumber = posCheck[i][1]; //access the label number);
-      var toTransform = posCheck[i][0] - (labelObjects[labelNumber].getBBox().width/2);//how much to move the label
-      absTranslate(labelObjects[labelNumber],toTransform,0);
-      labelObjects[labelNumber].attr({'text-anchor': 'end'});//adjust the anchor
-      var newBBox = labelObjects[labelNumber].getBBox();
-      posCheck[i][2] = getQuadrant(newBBox.x2,newBBox.y);
-      posCheck[i][3] = newBBox;
-      labelsRight--;//decrement the count of right labels
-      labelsLeft++;//increment the count of left labels
-      i--;//iterate through array, IN REVERSE
-    }
-  }
+  // if (labelsLeft > labelsRight) {
+  //   posCheck.sort(compareLabelPos);//sort the labels by position
+  //   var i = labelsRight; //set starting point to array index number of right labels
+  //   //we have to check that the number isn't equal AND that it is not off by one
+  //   //if we don't, we will loop until the index is undefined on an odd number of labels
+  //   while ((labelsLeft != labelsRight) && (labelsLeft - labelsRight != 1)) {
+  //     //move labels right
+  //     var labelNumber = posCheck[i][1]; //access the label number);
+  //     var toTransform = posCheck[i][0] + (labelObjects[labelNumber].getBBox().width/2);//how much to move the label
+  //     // console.log(labelObjects[labelNumber]);
+  //     absTranslate(labelObjects[labelNumber],toTransform,0);
+  //     labelObjects[labelNumber].attr({'text-anchor': 'start'});//adjust the anchor
+  //     var newBBox = labelObjects[labelNumber].getBBox();
+  //     posCheck[i][2] = getQuadrant(newBBox.x,newBBox.y);
+  //     posCheck[i][3] = newBBox;
+  //     labelsRight++;//increment count of right labels
+  //     labelsLeft--;//decrement count of left labels
+  //     i++;//increment index number
+  //   }
+  // } else if (labelsRight > labelsLeft) {
+  //   //move labels left
+  //   posCheck.sort(compareLabelPos); //sort the labels by position
+  //   var i = labelObjects.length - labelsLeft -1; //start in reverse
+  //   //we have to check that the number isn't equal AND that it is not off by one
+  //   //if we don't, we will loop until the index is undefined on an odd number of labels
+  //   while ((labelsLeft != labelsRight) &&  (labelsRight - labelsLeft != 1)) {
+  //     var labelNumber = posCheck[i][1]; //access the label number);
+  //     var toTransform = posCheck[i][0] - (labelObjects[labelNumber].getBBox().width/2);//how much to move the label
+  //     absTranslate(labelObjects[labelNumber],toTransform,0);
+  //     labelObjects[labelNumber].attr({'text-anchor': 'end'});//adjust the anchor
+  //     var newBBox = labelObjects[labelNumber].getBBox();
+  //     posCheck[i][2] = getQuadrant(newBBox.x2,newBBox.y);
+  //     posCheck[i][3] = newBBox;
+  //     labelsRight--;//decrement the count of right labels
+  //     labelsLeft++;//increment the count of left labels
+  //     i--;//iterate through array, IN REVERSE
+  //   }
+  // }
 
-  for (i=0; i<labelObjects.length; i++) {
-    var labelNumber = posCheck[i][1];
-    // console.log("Processing label number " + (labelNumber + 1));
-    var thisLabel = labelObjects[labelNumber];
-    adjustGraphCollision(thisLabel,posCheck[i][2],xCenter,yCenter,pieRadius);
-    adjustEdgeCollision(thisLabel);
-    changeAnchor(thisLabel);
+  // for (i=0; i<labelObjects.length; i++) {
+  //   var labelNumber = posCheck[i][1];
+  //   // console.log("Processing label number " + (labelNumber + 1));
+  //   var thisLabel = labelObjects[labelNumber];
+  //   adjustGraphCollision(thisLabel,posCheck[i][2],xCenter,yCenter,pieRadius);
+  //   adjustEdgeCollision(thisLabel);
+  //   changeAnchor(thisLabel);
   }
-  var groupBbox = setOfPaths.getBBox();//get a bounding box of all the arcs
+  // var groupBbox = setOfPaths.getBBox();//get a bounding box of all the arcs
 
   //if all the above succeeded, set the height of the container just before animating the paths
   $('#node-<?php print $nid; ?> .graph-canvas').css('height',canvasHeight + "px");
    
-  console.log(labelList);
-  timedLoop(paths); //call the timedLoop function for fadeIn.
+  // console.log(labelList);
+  // timedLoop(paths); //call the timedLoop function for fadeIn.
+
+  var subValues = [];
+  var subLabels = [];
+  var subColors = [];
+
+  for (i=0;i<fieldCollections.length;i++) {
+          var vValue = parseFloat(fieldCollections[i][fc_ids[i]].field_value.und[0].value);
+          var vLabel = fieldCollections[i][fc_ids[i]].field_label.und[0].safe_value;
+          var vColor = fieldCollections[i][fc_ids[i]].field_color.und[0].rgb;
+          
+          subValues.push(vValue);
+          subLabels.push(vLabel);
+          subColors.push(vColor);
+          // var allValues = [vValue,vLabel,vColor];
+          // arrayValues.push(allValues);
+  }
+  var arrayValues = [subValues,subLabels,subColors];
+  // console.log(arrayValues);
+  var pCenter = [xCenter,yCenter];
+//this is already set
+  //var rotationDeg = <?php print drupal_json_encode($node->{'field_graph_rotation'}['und'][0]['value']); ?>;
+  var tempFlag = 1;
+  var tempLargeText = "SOMETHING";
+  var tempSmallText = "smaller text";
+  var pSpecial = [tempFlag,rotationDeg,percentThickness,tempLargeText,tempSmallText];
+  var newPie = new Pie(arrayValues,pieRadius,pCenter,paper,pSpecial);
+
+  newPie.draw();
+  console.log(newPie);
 
     // a label object
-    function label(labelObject,bBox) {
+    function label(labelText,labelNumber,anchorStart,anchorEnd,rCanvas,minRadius) {
+      this.text = labelText;
+      // this.canvas = rCanvas;
+      this.labelNumber = labelNumber;
+      this.anchorStart = anchorStart;
+      this.anchorEnd = anchorEnd;
+      this.radius = minRadius;
+      this.rObject = null;
+      //THESE WILL HAVE TO BE FILLED BY A SUBSEQUENT FUNCTION CALL
       //object to hold label and associated bbox
-      this.rObject = labelObject;
-      this.bbox = bBox;
-      this.quadrant = getQuadrant(this.rObject.attrs.x,this.rObject.attrs.y);
-      
-      if (this.quadrant > 2) { //check if it is right or left
-        this.fromCenter = xCenter - this.bbox.x2;
-      } else {
-        this.fromCenter = xCenter - this.bbox.x;
-      }
+      // this.rObject = labelObject;
+      // this.bbox = bBox;
+      // this.quadrant = getQuadrant(this.rObject.attrs.x,this.rObject.attrs.y);
+      // if (this.quadrant > 2) { //check if it is right or left
+      //   this.fromCenter = xCenter - this.bbox.x2;
+      // } else {
+      //   this.fromCenter = xCenter - this.bbox.x;
+      // }
       
       console.log("I'm a label!");
+
+      // this.draw = function() { //draw the slices
+      //     this.rObject = paper.text(currentArc[4], currentArc[5], currentLabel).attr({'text-anchor': labelAnchor,"font-size": 8});
+
+
+      //     this.sliceObjects.push(thisObject);
+      //   }
+      // };
     }
 
     //array of values for pie chart [value,label,color]
@@ -402,297 +802,37 @@
     //array [x,y] of center position
     //array of label strings
     //raphael object on which to draw the pie
-    //special array [specialFlag,rotation,percentThick]
-    function pie(valuesArray,radius,centerPosArray,raphaelCanvas,specialArray) {
-      this.values = valuesArray[0];
-      this.labels = valuesArray[1];
-      this.colors = valuesArray[2];
-      this.total= 0;
-      //calculate total
-      for (i=0; i<this.values.length; i++) { this.total += this.values[i]; } //calculate a total
-      this.percentages = []; //array to hold percent
-      for (i=0; i<this.values.length; i++) { percentages.push(this.values[i]/total); } //calculate a percent
-      this.sliceObjects = []; //array of slice objects created in the pie
+    //special array [specialFlag,rotation,percentThick,bigText,littleText]
+    // Pie.prototype.draw = function() 
+    // {
+    //   for (var i in this.slicePaths) {
+    //     var thisObject = thisCanvas.path(slicePaths[i]).attr({
+    //       fill: currentColor,
+    //       stroke: "white",
+    //       "stroke-width": 4
+    //     }).mouseover(function () {
+    //             this.stop().animate({"fill-opacity":" 1"}, 200, "<>");
+    //         }).mouseout(function () {
+    //             this.stop().animate({"fill-opacity": "0.75"}, 200, "<>");
+    //         });
 
-      //keep track of used percentage
-      var isUsed = 0;
-      for (i=0; i<this.percentages.length; i++) { 
-         var currentArc = drawArc(centerPosArray[0],centerPosArray[1],radius,specialArray[1],this.percentages[i],isUsed,specialArray[0],specialArray[2]);
+    //     this.sliceObjects.push(thisObject);
+    //   }
+    //   timedLoop(this.sliceObjects);
+    // };
+
+    //define the pie object
+   
       
-
-      }
+    //   var currentArc = drawArc(centerPosArray[0],graphRadius,radius,rotationDeg,percentages[i],largeArc,isUsed,1,percentThickness);
+    //   //retrieve the color for this object
       
-      var currentArc = drawArc(centerPosArray[0],graphRadius,radius,rotationDeg,percentages[i],largeArc,isUsed,1,percentThickness);
-      //retrieve the color for this object
-      
-      // this.labels = [];
-      // for (i=0; i<labelsArray.length; i++) { 
+    //   // this.labels = [];
+    //   // for (i=0; i<labelsArray.length; i++) { 
 
-      }
-    }
-    function absTranslate(raphaelObject,xTrans,yTrans) {
-      var currentX = raphaelObject.attrs.x;
-      var currentY = raphaelObject.attrs.y;
-      raphaelObject.attr({'x': currentX+xTrans, 'y' : currentY+yTrans});
-    }
-    //function to iterate over all paths and fade them in one at a time
-    var loopCount=0;
-    function timedLoop(paths) {
-        setTimeout(function () {
-          fadeIn(paths[loopCount],300,"0.75");
-          loopCount++;
-          if (loopCount<paths.length) {
-            timedLoop(paths);     
-          }
-        }, 300);
-    }
-    //function to sort the labels by distance from middle of graph
-    function compareLabelPos(label1,label2) {
-      if (label1[0] < label2[0]) {
-        return -1;
-      } else if (label1[0] > label2[0]) {
-        return 1;
-      } else {
-        return 0;
-      }
-    }
-    function getQuadrant(xPos,yPos) {
-      
-      //QUADRANT MAP
-      
-      //  ~ ————— ~
-      //  | 4 | 1 |
-      //  | ————— |
-      //  | 3 | 2 |
-      //  ~ ————— ~
-
-      var labelQuadrant = -1; //default case to indicate error
-      if (xPos < xCenter)  {
-        //label is left of center
-        if (yPos < yCenter) {
-          labelQuadrant = 4;
-        } else {
-          labelQuadrant = 3;
-        }
-      } else {
-        //label is right of center
-        if (yPos < yCenter) {
-          labelQuadrant = 1;
-        } else {
-          labelQuadrant = 2;
-        }
-      }
-      return labelQuadrant;
-    }
-    function adjustEdgeCollision(thisLabel) {
-      //get a bounding box for checking if the label overflows the available space
-      var bbox = thisLabel.getBBox();
-      var labelTX = bbox.x;
-      var labelTY = bbox.y;
-      var labelBX = bbox.x2;
-      var labelBY = bbox.y2;
-
-      //check whether label needs to be moved along y or x axis
-      //we'll assume the label isn't big enough to need to be 
-      //moved in both directions along an axis
-      
-      //y axis
-      if (labelTY < 0) {
-        // console.log("MOVE DOWN");
-        var moveAmt = 0 - labelTY;
-
-        absTranslate(thisLabel,0,moveAmt);
-        // thisLabel.transform("t0," + moveAmt);
-      } else if (labelBY > canvasHeight) { 
-        // console.log("MOVE UP");
-        var moveAmt = canvasHeight - labelBY;
-
-        absTranslate(thisLabel,0,moveAmt);
-        //thisLabel.transform("t0," + moveAmt);
-      }
-
-      //x axis
-      if (labelTX < 0) {
-        // console.log("MOVE RIGHT");
-        var moveAmt = 0 - labelTX;
-
-        absTranslate(thisLabel,moveAmt,0);
-        // thisLabel.transform("t" + moveAmt + ",0");
-      } else if (labelBX > canvasWidth) {
-        // console.log("MOVE LEFT");
-        var moveAmt = canvasWidth - labelBX;
-
-        absTranslate(thisLabel,moveAmt,0);
-        // thisLabel.transform("t" + moveAmt + ",0");
-      }
-    }
-    function adjustGraphCollision(labelObject,quadrant,centerX,centerY,pieRadius) {
-      currentBbox = labelObject.getBBox();
-      var xAnchor = -1;
-      var yAnchor = -1;
-      if (quadrant == 1) {
-        xAnchor = currentBbox.x;
-        yAnchor = currentBbox.y2;
-      } else if (quadrant == 2) { 
-        xAnchor =  currentBbox.x;
-        yAnchor = currentBbox.y;
-      } else if (quadrant == 3) {
-        xAnchor = currentBbox.x2;
-        yAnchor = currentBbox.y;
-      } else { //should be in fourth quadrant, we hope
-        xAnchor = currentBbox.x2;
-        yAnchor = currentBbox.y2;
-      }
-
-      //draw a circle to represent the pie area
-      var collisionObj = paper.circle(centerX,centerY,pieRadius).attr({'opacity': 0});
-     
-      if (collisionObj.isPointInside(xAnchor,yAnchor)) {
-        // console.log("collision detected, index " + i);
-        // console.log("quadrant: " + quadrant);
-        var angleDeg = Raphael.angle(xAnchor,yAnchor,centerX,centerY);
-        var angleRad = Raphael.rad(angleDeg);
-        var newPosition = getPointOnCircle(angleRad,pieRadius+10,centerX,centerY);
-        var toTransformX = newPosition[0] - xAnchor;
-        var toTransformY = newPosition[1] - yAnchor;
-
-
-        absTranslate(labelObject,toTransformX,toTransformY);
-      } //don't do anything else
-      
-      collisionObj.remove(); //remove the object
-    }
-    function getPointOnCircle(angle,radius,centerX,centerY) {
-      var xCoord = centerX + radius * Math.cos(angle);
-      var yCoord = centerY + radius * Math.sin(angle);
-      results = [xCoord,yCoord];
-
-      return results;
-    }
-    function drawArc(centerX,centerY,radius,rotation,percent,isLarge,used,specialFlag,percentThick) {//angle passed in radians, please
-     
-      //STRINGS FOR TOTAL ARC AND ARC TO ANIMATE FROM
-      var arcString = "";
-      var arcStart = "";
-      var labelLine = "";
-      var totalAdj = -(.5*Math.PI); //this will be used in the negative direction
-      var rotationRad = (rotation/360) * 2 * Math.PI;
-      var adjustment = totalAdj; // subtract 1/2 PI to get 12 o clock position
-      totalAdj += rotationRad;//set total adjustment based on rotation parameter
-
-      //SOME ANGLE CALCULATIONS
-      var angle = (2 * Math.PI * (percent + used)) + totalAdj //end location
-      var halfAngle = (2 * Math.PI * ((percent/2) + used)) + totalAdj; //middle location, for label
-      var startAngle = (2 * Math.PI * used) + totalAdj; //start location
-
-      var startX = centerX + radius * Math.cos(startAngle);//calculate outside start
-      var startY = centerY + radius * Math.sin(startAngle);
-      
-      //standard values to compare against
-      var rad36 = (2*Math.PI) + adjustment; //270
-      var rad27 = (1.5*Math.PI) + adjustment; //180
-      var rad18 = Math.PI + adjustment; //90
-      var rad9 = (.5*Math.PI) + adjustment; //0
-      var rad0 = 0 + adjustment; //-90
-
-
-      //ADJUSTMENTS FOR LABEL
-      //correct values larger than 2 PI
-      if (halfAngle > 1.5*Math.PI) { //adjust this an extra quarter to account for svg graph space
-        halfAngle = halfAngle - (2 * Math.PI);
-      } 
-
-      //Math.PI/6 == 30
-      //Math.PI/3 == 60
-
-      //check cases for moving labels away from bottom of graph
-      if ( ( rad0 < halfAngle && halfAngle < -Math.PI/6 ) || (rad18 < halfAngle && halfAngle < (rad27 - Math.PI/3)) ) { //this will cause error because rad9 is equal to zero
-        halfAngle = halfAngle + (percent * Math.PI * 0.5);//add a quarter percent to the location
-      } else if (( (rad27 + Math.PI/3) < halfAngle && halfAngle < rad36) || ((rad9 + Math.PI/3)< halfAngle && halfAngle < rad18) ) {
-        halfAngle = halfAngle - (percent * Math.PI * 0.5);
-      }
-      
-      //calculate endpoint :)
-      var endX = centerX + radius * Math.cos(angle);//calculating endX by angle so far alone
-      var endY = centerY + radius * Math.sin(angle);//same problem as
-      
-      //caculate the label location, with some distance from the graph
-      var labelX = centerX + (radius+1) * Math.cos(halfAngle);
-      var labelY = centerY + (radius+1) * Math.sin(halfAngle);
-      
-      var quadrant = getQuadrant(labelX,labelY);
-      var thickness = Math.floor((percentThick/100) * pieRadius);
-      var results = new Array();
-
-      //MAKE THE STRING, WITH SWITCH FOR EMPTY MIDDLE
-      if (specialFlag != 0) { //pie with hole in the middle
-        var smallRadius = radius-thickness;
-        var smallStartX = centerX + smallRadius * Math.cos(startAngle);
-        var smallStartY = centerY + smallRadius * Math.sin(startAngle);
-        var smallEndX = centerX + smallRadius * Math.cos(angle);
-        var smallEndY = centerY + smallRadius * Math.sin(angle);
-
-        arcString = "M" + smallStartX + "," + smallStartY;
-        arcString += " ";
-
-        arcString += "L" + startX + "," + startY;
-        arcString += " ";
-
-        arcStart = arcString; //these are about to diverge
-        arcStart += "L" + smallStartX + "," + smallStartY + "z";
-
-        arcString += "A" + radius + "," + radius;
-        arcString += ",0," + isLarge + ",1 ";
-        arcString += endX + "," + endY;
-
-        arcString += "L" + smallEndX + "," + smallEndY;
-        arcString += " ";
-
-        arcString += "A" + smallRadius + "," + smallRadius;
-        arcString += ",0," + isLarge + ",0 ";
-
-        arcString += smallStartX + "," + smallStartY;
-        arcString += ",z";
-      } else {
-        //normal code
-      arcString = "M" + centerX + "," + centerY;
-      arcString += " ";//add a space
-        
-      arcString += "L" + startX + "," + startY; //initial line
-      arcString += " ";//add a space
-
-      arcString += "A" + radius + "," + radius;//we only draw circular arcs, here.
-      arcString += ",20," + isLarge + ",1 ";//some required flags and spaces
-
-      arcString += endX + "," +endY;//add the end points
-      arcString += ",z";//close the path
-      }
-
-      results[0] = arcString;
-      results[1] = endX;
-      results[2] = endY;
-      results[3] = arcStart;
-      results[4] = labelX;
-      results[5] = labelY;
-      results[6] = quadrant;
-
-      return results; //returns an array with the arcString and the end coordinates
-    }
-    function fadeIn(toAnimate,duration,opacity) {
-        toAnimate.animate({"fill-opacity":opacity,"stroke-opacity":"1"},duration, "<>");
-    }
-    function changeAnchor(labelObject) {
-      var currentAnchor = labelObject.attrs['text-anchor'];
-      var thisBBox = labelObject.getBBox(); 
-      // console.log(labelObject);
-        if (currentAnchor == "start") {
-          labelObject.attr({'text-anchor':'end'});
-          absTranslate(labelObject,thisBBox.width,0);
-        } else {
-          labelObject.attr({'text-anchor':'start'});
-          absTranslate(labelObject,-thisBBox.width,0);
-        }
-    }
+    //   }
+    // }
+    
   });
 
 </script>
